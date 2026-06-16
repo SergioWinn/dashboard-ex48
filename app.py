@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import re
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -20,6 +19,7 @@ html, body, .stApp { font-family: 'Inter', sans-serif; }
 /* Header & Badge */
 .ldp-header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid rgba(128,128,128,0.2); padding-bottom: 20px; }
 .ldp-title { font-weight: 800; font-size: 2.5rem; margin: 0; margin-bottom: 5px; }
+.stElementContainer [data-testid="stExpander"] { margin-bottom: 25px !important; }
 .ldp-subtitle { font-weight: 600; font-size: 1.2rem; opacity: 0.7; margin-bottom: 10px; margin-top: 0; }
 
 /* Credits & Donation */
@@ -70,7 +70,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card.warn .c-badge { background: rgba(251,191,36,0.2); color: #D97706; cursor: pointer; }
 .ldp-card.sold .c-badge { background: #EF4444; color: #fff; cursor: not-allowed; }
 
-/* Custom Selectbox Container */
+/* Custom Container Dropdown */
 .selectbox-container { margin-bottom: 25px; padding: 20px; background: rgba(128,128,128,0.05); border-radius: 15px; border: 1px solid rgba(128,128,128,0.15); }
 
 /* Mobile optimization */
@@ -106,7 +106,6 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 
 @st.cache_data(ttl=300)
 def get_active_exclusive_codes():
-    """Mengambil daftar semua kode event dari API resmi JKT48."""
     url = "https://jkt48.com/api/v1/exclusives?lang=id"
     try:
         response = requests.get(url, headers=HEADERS, timeout=10)
@@ -122,7 +121,6 @@ def get_active_exclusive_codes():
 
 @st.cache_data(ttl=4)
 def fetch_exclusive_detail(code):
-    """Menarik data detail JSON untuk kode event spesifik."""
     url = f"https://jkt48.com/api/v1/exclusives/{code}?lang=id"
     try:
         r = requests.get(url, headers=HEADERS, timeout=5)
@@ -234,7 +232,6 @@ for code in active_codes:
     if data and data.get('status') is not False: 
         active_events.append(data)
 
-# Sort event berdasarkan tanggal rilis (terbaru di atas)
 active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
 if active_events:
@@ -266,7 +263,7 @@ if active_events:
     with col1:
         selected_event_label = st.selectbox("📌 Pilih Event Exclusive (Urutan Terbaru):", list(event_options.keys()))
     with col2:
-        global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama oshimu (misal: Michie, Gracie, atau Fritzy)...").lower().strip()
+        global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama member...").lower().strip()
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -290,23 +287,20 @@ if active_events:
     sisa_kuota = total_capacity - total_sold
     sold_rate = (total_sold / total_capacity * 100) if total_capacity > 0 else 0.0
     
-    # Render Box Metrik
-    st.markdown('<div style="margin-top: 10px; margin-bottom: 25px; padding: 20px 15px 5px 15px; background: rgba(128,128,128,0.05); border-radius: 12px; border: 1px solid rgba(128,128,128,0.15);">', unsafe_allow_html=True)
-    
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    with col_m1:
-        st.metric(label="Total Kapasitas", value=f"{total_capacity:,}")
-    with col_m2:
-        st.metric(label="Tiket Terjual", value=f"{total_sold:,}")
-    with col_m3:
-        # Indikator warna merah saat tiket laku terjual
-        st.metric(label="Sisa Kuota", value=f"{sisa_kuota:,}", delta=f"-{total_sold} Terjual", delta_color="inverse")
-    with col_m4:
-        st.metric(label="Sold Rate", value=f"{sold_rate:.1f}%")
+    # --- IMPLEMENTASI POPUP/EXPANDER (INSIGHT TERSEMBUNYI) ---
+    # expanded=False memastikan panel ini tertutup rapi saat pertama kali dimuat
+    with st.expander("📊 Lihat Analitik & Data Insight Penjualan (Sales Overview)", expanded=False):
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        with col_m1:
+            st.metric(label="Total Kapasitas", value=f"{total_capacity:,}")
+        with col_m2:
+            st.metric(label="Tiket Terjual", value=f"{total_sold:,}")
+        with col_m3:
+            st.metric(label="Sisa Kuota", value=f"{sisa_kuota:,}", delta=f"-{total_sold} Terjual", delta_color="inverse")
+        with col_m4:
+            st.metric(label="Sold Rate", value=f"{sold_rate:.1f}%")
         
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Panggil fungsi render utama (Otomatis menghandle multi-date split)
+    # Render Grid Member langsung terlihat tanpa terhalang metrik
     render_event_cards(selected_event, global_query)
 else:
     st.error("Tidak ada event Exclusive yang aktif atau sistem gagal menarik data.")
