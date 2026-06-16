@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import re
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -69,9 +70,8 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card.warn .c-badge { background: rgba(251,191,36,0.2); color: #D97706; cursor: pointer; }
 .ldp-card.sold .c-badge { background: #EF4444; color: #fff; cursor: not-allowed; }
 
-/* Custom Container Dropdown & Date Selector */
+/* Custom Selectbox Container */
 .selectbox-container { margin-bottom: 25px; padding: 20px; background: rgba(128,128,128,0.05); border-radius: 15px; border: 1px solid rgba(128,128,128,0.15); }
-.date-box { margin-bottom: 20px; padding: 12px 20px; background: rgba(16,185,129,0.05); border-left: 4px solid #10B981; border-radius: 4px; font-weight: 600; font-size: 14px; }
 
 /* Mobile optimization */
 @media (max-width: 500px) { 
@@ -106,6 +106,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 
 @st.cache_data(ttl=300)
 def get_active_exclusive_codes():
+    """Mengambil daftar semua kode event dari API resmi JKT48."""
     url = "https://jkt48.com/api/v1/exclusives?lang=id"
     try:
         response = requests.get(url, headers=HEADERS, timeout=10)
@@ -121,6 +122,7 @@ def get_active_exclusive_codes():
 
 @st.cache_data(ttl=4)
 def fetch_exclusive_detail(code):
+    """Menarik data detail JSON untuk kode event spesifik."""
     url = f"https://jkt48.com/api/v1/exclusives/{code}?lang=id"
     try:
         r = requests.get(url, headers=HEADERS, timeout=5)
@@ -142,8 +144,7 @@ def render_event_cards(event_data, search_query):
         st.info("Sesi belum tersedia untuk event ini.")
         return
 
-    # --- STRATEGI SEPARASI TANGGAL DILAKUKAN DI SINI ---
-    # 1. Kelompokkan objek sesi berdasarkan tanggal (WIB)
+    # --- STRATEGI SEPARASI TANGGAL ---
     sessions_by_date = {}
     for sesi in sessions:
         raw_date = sesi.get('date', '')
@@ -163,7 +164,6 @@ def render_event_cards(event_data, search_query):
         
     unique_dates = list(sessions_by_date.keys())
     
-    # 2. Tampilkan filter tanggal horizontal jika harinya ada lebih dari 1
     if len(unique_dates) > 1:
         selected_date = st.radio(
             "📅 Pilih Tanggal Pelaksanaan Event:", 
@@ -175,7 +175,6 @@ def render_event_cards(event_data, search_query):
     else:
         selected_date = unique_dates[0] if unique_dates else None
 
-    # 3. Ambil sesi hanya untuk tanggal yang dipilih user
     active_sessions = sessions_by_date.get(selected_date, []) if selected_date else sessions
 
     has_data = False
@@ -235,7 +234,7 @@ for code in active_codes:
     if data and data.get('status') is not False: 
         active_events.append(data)
 
-# Sort event berdasarkan tanggal rils (terbaru di atas)
+# Sort event berdasarkan tanggal rilis (terbaru di atas)
 active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
 if active_events:
@@ -267,23 +266,47 @@ if active_events:
     with col1:
         selected_event_label = st.selectbox("📌 Pilih Event Exclusive (Urutan Terbaru):", list(event_options.keys()))
     with col2:
-        global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama member...").lower().strip()
+        global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama oshimu (misal: Michie, Gracie, atau Fritzy)...").lower().strip()
     
     st.markdown('</div>', unsafe_allow_html=True)
     
     selected_event = event_options[selected_event_label]
     
+    # Render Judul & Meta Informasi Dasar
     st.markdown(f"### {selected_event.get('title', 'Event')}")
-    meta_html = f"""
-    <div style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">
-        <b>Kategori:</b> {selected_event.get('category', '-').replace('_', ' ')} | 
-        <b>Harga:</b> Rp {selected_event.get('default_price', 0):,} | 
-        <b>Kuota Total:</b> {selected_event.get('total_quota', 0):,}
-    </div>
-    """
-    st.markdown(meta_html, unsafe_allow_html=True)
+    st.caption(f"**Kategori:** {selected_event.get('category', '-').replace('_', ' ')} | **Harga:** Rp {selected_event.get('default_price', 0):,}")
     
-    # Panggil fungsi render utama (Sekarang otomatis menghandle multi-date split)
+    # --- INSIGHT METRICS KALKULASI ---
+    total_sold = 0
+    total_capacity = 0
+    
+    for sesi in selected_event.get('session', []):
+        for m in sesi.get('session_detail', []):
+            sold = m.get('tickets_sold', 0)
+            avail = m.get('available_quota', 0)
+            total_sold += sold
+            total_capacity += (sold + avail)
+            
+    sisa_kuota = total_capacity - total_sold
+    sold_rate = (total_sold / total_capacity * 100) if total_capacity > 0 else 0.0
+    
+    # Render Box Metrik
+    st.markdown('<div style="margin-top: 10px; margin-bottom: 25px; padding: 20px 15px 5px 15px; background: rgba(128,128,128,0.05); border-radius: 12px; border: 1px solid rgba(128,128,128,0.15);">', unsafe_allow_html=True)
+    
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    with col_m1:
+        st.metric(label="Total Kapasitas", value=f"{total_capacity:,}")
+    with col_m2:
+        st.metric(label="Tiket Terjual", value=f"{total_sold:,}")
+    with col_m3:
+        # Indikator warna merah saat tiket laku terjual
+        st.metric(label="Sisa Kuota", value=f"{sisa_kuota:,}", delta=f"-{total_sold} Terjual", delta_color="inverse")
+    with col_m4:
+        st.metric(label="Sold Rate", value=f"{sold_rate:.1f}%")
+        
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Panggil fungsi render utama (Otomatis menghandle multi-date split)
     render_event_cards(selected_event, global_query)
 else:
     st.error("Tidak ada event Exclusive yang aktif atau sistem gagal menarik data.")
