@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import re
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -104,16 +103,28 @@ st.markdown(
 # --- 5. DATA ENGINE (GENERAL API FETCHING) ---
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
-@st.cache_data(ttl=3600) # Cache 1 jam
+@st.cache_data(ttl=300) # Cache 5 menit untuk API List
 def get_active_exclusive_codes():
+    """Mengambil daftar semua kode event dari API resmi JKT48."""
+    url = "https://jkt48.com/api/v1/exclusives?lang=id"
     try:
-        r = requests.get("https://jkt48.com/purchase/exclusive", headers=HEADERS, timeout=10)
-        codes = set(re.findall(r'EX[A-Z0-9]{4,6}', r.text))
-        return list(codes)
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        if response.status_code == 200:
+            res_json = response.json()
+            
+            if res_json.get("status") is True and "data" in res_json:
+                data_content = res_json["data"]
+                # Ekstrak array list event
+                event_list = data_content if isinstance(data_content, list) else data_content.get("data", [])
+                
+                # Ekstrak semua 'code' dari list event
+                codes = [ev.get("code") for ev in event_list if ev.get("code")]
+                return codes
     except:
-        return []
+        pass
+    return []
 
-@st.cache_data(ttl=4) # Cache 4 detik
+@st.cache_data(ttl=4) # Cache 4 detik untuk API Detail (Real-time update)
 def fetch_exclusive_detail(code):
     url = f"https://jkt48.com/api/v1/exclusives/{code}?lang=id"
     try:
@@ -198,32 +209,25 @@ def render_event_cards(event_data, search_query):
 
 st.info("💡 **Petunjuk:** Pilih event dari dropdown di bawah, lalu klik tombol **SISA** pada member untuk membeli.")
 
-# 1. Tarik semua kode event yang sedang aktif di web (Auto-Scrape)
+# 1. Tarik semua kode event dari API
 active_codes = get_active_exclusive_codes()
 
-# 2. FALLBACK CODES: Masukkan semua kode EX yang kamu tahu di sini 
-# jika sistem scrape terblokir oleh JKT48, kode-kode di bawah yang akan ditarik datanya.
+# Fallback manual jika API list tiba-tiba gagal
 if not active_codes:
-    active_codes = [
-        'EX783D', # JKT48 Personal Meet and Greet Festival
-        'EX9A4A', # Team Love & Team Dream, Meet and Greet Surabaya
-        'EXCD2C', # Team Passion, 2shot Yogyakarta
-        'EXCB75', # Tambahkan event lain jika ada...
-        # 'EXXXXX', (Tambahkan ID baru di sini)
-    ]
+    active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
 
-# 3. Ambil payload JSON
+# 2. Ambil payload JSON untuk masing-masing kode
 active_events = []
 for code in active_codes:
     data = fetch_exclusive_detail(code)
     if data and data.get('status') is not False: 
         active_events.append(data)
 
-# 4. Render UI Dropdown & Konten
+# 3. Render UI Dropdown & Konten
 if active_events:
     st.markdown('<div class="selectbox-container">', unsafe_allow_html=True)
     
-    # Mapping data ke dictionary agar mudah dipilih via Dropdown
+    # Mapping data ke dictionary untuk Dropdown
     event_options = {}
     for ev in active_events:
         cat = ev.get('category', '')
@@ -233,7 +237,7 @@ if active_events:
         dropdown_label = f"{icon} {title}"
         event_options[dropdown_label] = ev
     
-    # Render Dropdown
+    # Render Dropdown layout
     col1, col2 = st.columns([2, 1])
     with col1:
         selected_event_label = st.selectbox("📌 Pilih Event Exclusive:", list(event_options.keys()))
