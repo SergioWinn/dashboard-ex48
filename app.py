@@ -235,7 +235,6 @@ for code in active_codes:
 active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
 if active_events:
-    st.markdown('<div class="selectbox-container">', unsafe_allow_html=True)
     
     event_options = {}
     for ev in active_events:
