@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import re
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -223,7 +224,11 @@ for code in active_codes:
     if data and data.get('status') is not False: 
         active_events.append(data)
 
-# 3. Render UI Dropdown & Konten
+# --- 3. FITUR SORTING (TERBARU) ---
+# Mengurutkan array event berdasarkan tanggal rilis/valid_date_from secara Descending (Paling baru di atas)
+active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
+
+# 4. Render UI Dropdown & Konten
 if active_events:
     st.markdown('<div class="selectbox-container">', unsafe_allow_html=True)
     
@@ -234,13 +239,30 @@ if active_events:
         icon = "📸" if cat == "TWO_SHOT" else "🤝" if cat == "PHOTOCARD" else "📱" if cat == "DIGITAL_PHOTOBOOK" else "🎟️"
         title = ev.get('title', 'Unknown Event')
         
-        dropdown_label = f"{icon} {title}"
+        # Ekstrak tanggal pembukaan untuk dimasukkan ke Label Dropdown
+        raw_open_date = ev.get('valid_date_from', '')
+        open_date_str = ""
+        if raw_open_date:
+            try:
+                dt_utc = datetime.strptime(raw_open_date.split('.')[0].replace('Z', ''), "%Y-%m-%dT%H:%M:%S")
+                dt_wib = dt_utc + timedelta(hours=7)
+                open_date_str = f"[{dt_wib.strftime('%d/%m/%Y')}] "
+            except:
+                pass
+        
+        # Contoh Output: "📸 [15/06/2026] Team Passion, 2shot Yogyakarta"
+        dropdown_label = f"{icon} {open_date_str}{title}"
+        
+        # Antisipasi kalau ada judul duplikat (streamlt error kalau selectbox ada key kembar)
+        if dropdown_label in event_options:
+            dropdown_label += f" ({ev.get('code', '')})"
+            
         event_options[dropdown_label] = ev
     
     # Render Dropdown layout
     col1, col2 = st.columns([2, 1])
     with col1:
-        selected_event_label = st.selectbox("📌 Pilih Event Exclusive:", list(event_options.keys()))
+        selected_event_label = st.selectbox("📌 Pilih Event Exclusive (Diurutkan dari Terbaru):", list(event_options.keys()))
     with col2:
         global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama member...").lower().strip()
     
