@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import re
+from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
 # --- 1. KONFIGURASI HALAMAN ---
@@ -100,20 +101,17 @@ st.markdown(
 # --- 5. DATA ENGINE (GENERAL API FETCHING) ---
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
-@st.cache_data(ttl=3600) # Cache 1 jam agar tidak spam scraping ke web utama
+@st.cache_data(ttl=3600) # Cache 1 jam
 def get_active_exclusive_codes():
-    """Mencari semua kode event (EX...) dari halaman utama Exclusive JKT48."""
     try:
         r = requests.get("https://jkt48.com/purchase/exclusive", headers=HEADERS, timeout=10)
-        # Ekstrak semua kode yang berawalan EX diikuti alphanumeric
         codes = set(re.findall(r'EX[A-Z0-9]{4,6}', r.text))
         return list(codes)
     except:
         return []
 
-@st.cache_data(ttl=4) # Cache 4 detik sesuai kebutuhan realtime
+@st.cache_data(ttl=4) # Cache 4 detik
 def fetch_exclusive_detail(code):
-    """Menarik data detail JSON untuk kode event spesifik."""
     url = f"https://jkt48.com/api/v1/exclusives/{code}?lang=id"
     try:
         r = requests.get(url, headers=HEADERS, timeout=5)
@@ -124,12 +122,10 @@ def fetch_exclusive_detail(code):
     return None
 
 def render_event_cards(event_data, search_query):
-    """Fungsi utama untuk merender UI grid card untuk setiap sesi di dalam suatu event."""
     event_id = event_data.get('code', '')
     category = event_data.get('category', 'GENERAL')
     purchase_link = f"https://jkt48.com/purchase/exclusive?code={event_id}"
     
-    # Atur limit warning berdasarkan kategori (bisa disesuaikan)
     warn_limit = 5 if category in ["TWO_SHOT", "DIGITAL_PHOTOBOOK"] else 20
     
     sessions = event_data.get('session', [])
@@ -150,10 +146,25 @@ def render_event_cards(event_data, search_query):
             
         has_data = True
         
-        # Label Sesi & Waktu
+        # Ekstraksi Label & Waktu
         sesi_label = sesi.get('label', 'Sesi')
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
-        date_info = f" ({sesi.get('date', '')[:10]})" if sesi.get('date') else ""
+        
+        # --- FIX ZONAWAKTU (UTC ke WIB) ---
+        raw_date = sesi.get('date', '')
+        date_info = ""
+        if raw_date:
+            try:
+                # Format JSON: "2026-06-27T17:00:00.000Z"
+                # Buang 'Z' dan milidetik sebelum di-parse
+                clean_date = raw_date.split('.')[0].replace('Z', '')
+                dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
+                # Konversi ke WIB (UTC+7)
+                dt_wib = dt_utc + timedelta(hours=7)
+                date_info = f" ({dt_wib.strftime('%d/%m/%Y')})"
+            except:
+                date_info = f" ({raw_date[:10]})"
+        # ----------------------------------
         
         st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}{date_info}</small>", unsafe_allow_html=True)
         
@@ -164,10 +175,8 @@ def render_event_cards(event_data, search_query):
             tickets_sold = m.get('tickets_sold', 0)
             jalur_label = m.get("label", "-")
             
-            # Teks info tiket terjual
             sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
             
-            # Logika pewarnaan card
             if current_quota <= 0: 
                 cls, lbl = "sold", "HABIS"
                 html += f'<div class="ldp-card {cls}"><div class="c-jalur">{jalur_label}</div><div class="c-member">{member_name}</div>{sold_text}<div class="c-badge">{lbl}</div></div>'
@@ -191,43 +200,38 @@ st.info("💡 **Petunjuk:** Klik tombol **SISA** pada kartu member untuk langsun
 global_query = st.text_input("🔍 Cari Member (Global Search)...", placeholder="Masukkan nama member...").lower().strip()
 st.write("")
 
-# 1. Tarik semua kode event yang sedang aktif di web
+# Tarik semua kode event yang sedang aktif di web
 active_codes = get_active_exclusive_codes()
 
-# Fallback codes jika scraper gagal mendapatkan data
+# Fallback codes
 if not active_codes:
     active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
 
-# 2. Ambil payload JSON secara paralel/berurutan untuk semua kode
+# Ambil payload JSON secara berurutan
 active_events = []
 for code in active_codes:
     data = fetch_exclusive_detail(code)
-    if data and data.get('status') is not False: # Memastikan API me-return data valid
+    if data and data.get('status') is not False: 
         active_events.append(data)
 
-# 3. Render Dashboard Dinamis
+# Render Dashboard Dinamis
 if active_events:
-    # Buat nama tab berdasarkan Kategori & Title Event
     tab_titles = []
     for ev in active_events:
         cat = ev.get('category', '')
         icon = "📸" if cat == "TWO_SHOT" else "🤝" if cat == "PHOTOCARD" else "📱" if cat == "DIGITAL_PHOTOBOOK" else "🎟️"
         title = ev.get('title', 'Unknown Event')
         
-        # Singkat judul jika terlalu panjang agar tab tidak berantakan
         short_title = (title[:25] + '..') if len(title) > 25 else title
         tab_titles.append(f"{icon} {short_title}")
         
-    # Render Tabs
     rendered_tabs = st.tabs(tab_titles)
     
-    # Isi masing-masing Tab dengan UI Card
     for idx, tab in enumerate(rendered_tabs):
         with tab:
             event = active_events[idx]
             st.markdown(f"### {event.get('title', 'Event')}")
             
-            # Informasi meta event
             meta_html = f"""
             <div style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">
                 <b>Kategori:</b> {event.get('category', '-').replace('_', ' ')} | 
@@ -237,7 +241,6 @@ if active_events:
             """
             st.markdown(meta_html, unsafe_allow_html=True)
             
-            # Gambar Grid
             render_event_cards(event, global_query)
 else:
     st.error("Tidak ada event Exclusive yang sedang aktif atau sistem gagal menarik data dari JKT48.")
