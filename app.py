@@ -186,7 +186,11 @@ def render_event_cards(event_data, search_query):
             continue
             
         has_data = True
-        sesi_label = sesi.get('label', 'Sesi')
+        # --- Ekstraksi Label Dinamis (Tanpa Hardcode) ---
+        raw_label = sesi.get('label', 'Sesi')
+        # Memisahkan teks berdasarkan tanda '(' atau '·', lalu ambil elemen pertamanya
+        sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
+        
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
         
         st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}</small>", unsafe_allow_html=True)
