@@ -70,6 +70,9 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card.warn .c-badge { background: rgba(251,191,36,0.2); color: #D97706; cursor: pointer; }
 .ldp-card.sold .c-badge { background: #EF4444; color: #fff; cursor: not-allowed; }
 
+/* Custom Selectbox Container */
+.selectbox-container { margin-bottom: 25px; padding: 20px; background: rgba(128,128,128,0.05); border-radius: 15px; border: 1px solid rgba(128,128,128,0.15); }
+
 /* Mobile optimization */
 @media (max-width: 500px) { 
     .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } 
@@ -155,11 +158,8 @@ def render_event_cards(event_data, search_query):
         date_info = ""
         if raw_date:
             try:
-                # Format JSON: "2026-06-27T17:00:00.000Z"
-                # Buang 'Z' dan milidetik sebelum di-parse
                 clean_date = raw_date.split('.')[0].replace('Z', '')
                 dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
-                # Konversi ke WIB (UTC+7)
                 dt_wib = dt_utc + timedelta(hours=7)
                 date_info = f" ({dt_wib.strftime('%d/%m/%Y')})"
             except:
@@ -196,51 +196,67 @@ def render_event_cards(event_data, search_query):
 
 # --- 6. MAIN LAYOUT & DISCOVERY ---
 
-st.info("💡 **Petunjuk:** Klik tombol **SISA** pada kartu member untuk langsung menuju halaman pembelian tiket JKT48.")
-global_query = st.text_input("🔍 Cari Member (Global Search)...", placeholder="Masukkan nama member...").lower().strip()
-st.write("")
+st.info("💡 **Petunjuk:** Pilih event dari dropdown di bawah, lalu klik tombol **SISA** pada member untuk membeli.")
 
-# Tarik semua kode event yang sedang aktif di web
+# 1. Tarik semua kode event yang sedang aktif di web (Auto-Scrape)
 active_codes = get_active_exclusive_codes()
 
-# Fallback codes
+# 2. FALLBACK CODES: Masukkan semua kode EX yang kamu tahu di sini 
+# jika sistem scrape terblokir oleh JKT48, kode-kode di bawah yang akan ditarik datanya.
 if not active_codes:
-    active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
+    active_codes = [
+        'EX783D', # JKT48 Personal Meet and Greet Festival
+        'EX9A4A', # Team Love & Team Dream, Meet and Greet Surabaya
+        'EXCD2C', # Team Passion, 2shot Yogyakarta
+        'EXCB75', # Tambahkan event lain jika ada...
+        # 'EXXXXX', (Tambahkan ID baru di sini)
+    ]
 
-# Ambil payload JSON secara berurutan
+# 3. Ambil payload JSON
 active_events = []
 for code in active_codes:
     data = fetch_exclusive_detail(code)
     if data and data.get('status') is not False: 
         active_events.append(data)
 
-# Render Dashboard Dinamis
+# 4. Render UI Dropdown & Konten
 if active_events:
-    tab_titles = []
+    st.markdown('<div class="selectbox-container">', unsafe_allow_html=True)
+    
+    # Mapping data ke dictionary agar mudah dipilih via Dropdown
+    event_options = {}
     for ev in active_events:
         cat = ev.get('category', '')
         icon = "📸" if cat == "TWO_SHOT" else "🤝" if cat == "PHOTOCARD" else "📱" if cat == "DIGITAL_PHOTOBOOK" else "🎟️"
         title = ev.get('title', 'Unknown Event')
         
-        short_title = (title[:25] + '..') if len(title) > 25 else title
-        tab_titles.append(f"{icon} {short_title}")
-        
-    rendered_tabs = st.tabs(tab_titles)
+        dropdown_label = f"{icon} {title}"
+        event_options[dropdown_label] = ev
     
-    for idx, tab in enumerate(rendered_tabs):
-        with tab:
-            event = active_events[idx]
-            st.markdown(f"### {event.get('title', 'Event')}")
-            
-            meta_html = f"""
-            <div style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">
-                <b>Kategori:</b> {event.get('category', '-').replace('_', ' ')} | 
-                <b>Harga Default:</b> Rp {event.get('default_price', 0):,} | 
-                <b>Kuota Total:</b> {event.get('total_quota', 0):,}
-            </div>
-            """
-            st.markdown(meta_html, unsafe_allow_html=True)
-            
-            render_event_cards(event, global_query)
+    # Render Dropdown
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        selected_event_label = st.selectbox("📌 Pilih Event Exclusive:", list(event_options.keys()))
+    with col2:
+        global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama member...").lower().strip()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Ambil data event yang dipilih
+    selected_event = event_options[selected_event_label]
+    
+    # Render Judul & Meta Informasi
+    st.markdown(f"### {selected_event.get('title', 'Event')}")
+    meta_html = f"""
+    <div style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">
+        <b>Kategori:</b> {selected_event.get('category', '-').replace('_', ' ')} | 
+        <b>Harga Default:</b> Rp {selected_event.get('default_price', 0):,} | 
+        <b>Kuota Total:</b> {selected_event.get('total_quota', 0):,}
+    </div>
+    """
+    st.markdown(meta_html, unsafe_allow_html=True)
+    
+    # Render Grid Member
+    render_event_cards(selected_event, global_query)
 else:
-    st.error("Tidak ada event Exclusive yang sedang aktif atau sistem gagal menarik data dari JKT48.")
+    st.error("Tidak ada event Exclusive yang sedang aktif atau sistem gagal menarik data dari server JKT48.")
