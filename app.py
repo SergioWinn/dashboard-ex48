@@ -300,7 +300,7 @@ if active_events:
         with col_m2:
             st.metric(label="Tiket Terjual", value=f"{total_sold:,}")
         with col_m3:
-            st.metric(label="Sisa Kuota", value=f"{sisa_kuota:,}", delta=f"-{total_sold} Terjual", delta_color="inverse")
+            st.metric(label="Sisa Kuota", value=f"{sisa_kuota:,}")
         with col_m4:
             st.metric(label="Sold Rate", value=f"{sold_rate:.1f}%")
         
