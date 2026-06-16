@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import re
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -70,8 +69,9 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card.warn .c-badge { background: rgba(251,191,36,0.2); color: #D97706; cursor: pointer; }
 .ldp-card.sold .c-badge { background: #EF4444; color: #fff; cursor: not-allowed; }
 
-/* Custom Selectbox Container */
+/* Custom Container Dropdown & Date Selector */
 .selectbox-container { margin-bottom: 25px; padding: 20px; background: rgba(128,128,128,0.05); border-radius: 15px; border: 1px solid rgba(128,128,128,0.15); }
+.date-box { margin-bottom: 20px; padding: 12px 20px; background: rgba(16,185,129,0.05); border-left: 4px solid #10B981; border-radius: 4px; font-weight: 600; font-size: 14px; }
 
 /* Mobile optimization */
 @media (max-width: 500px) { 
@@ -104,28 +104,22 @@ st.markdown(
 # --- 5. DATA ENGINE (GENERAL API FETCHING) ---
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
-@st.cache_data(ttl=300) # Cache 5 menit untuk API List
+@st.cache_data(ttl=300)
 def get_active_exclusive_codes():
-    """Mengambil daftar semua kode event dari API resmi JKT48."""
     url = "https://jkt48.com/api/v1/exclusives?lang=id"
     try:
         response = requests.get(url, headers=HEADERS, timeout=10)
         if response.status_code == 200:
             res_json = response.json()
-            
             if res_json.get("status") is True and "data" in res_json:
                 data_content = res_json["data"]
-                # Ekstrak array list event
                 event_list = data_content if isinstance(data_content, list) else data_content.get("data", [])
-                
-                # Ekstrak semua 'code' dari list event
-                codes = [ev.get("code") for ev in event_list if ev.get("code")]
-                return codes
+                return [ev.get("code") for ev in event_list if ev.get("code")]
     except:
         pass
     return []
 
-@st.cache_data(ttl=4) # Cache 4 detik untuk API Detail (Real-time update)
+@st.cache_data(ttl=4)
 def fetch_exclusive_detail(code):
     url = f"https://jkt48.com/api/v1/exclusives/{code}?lang=id"
     try:
@@ -142,17 +136,52 @@ def render_event_cards(event_data, search_query):
     purchase_link = f"https://jkt48.com/purchase/exclusive?code={event_id}"
     
     warn_limit = 5 if category in ["TWO_SHOT", "DIGITAL_PHOTOBOOK"] else 20
-    
     sessions = event_data.get('session', [])
+    
     if not sessions:
         st.info("Sesi belum tersedia untuk event ini.")
         return
 
-    has_data = False
+    # --- STRATEGI SEPARASI TANGGAL DILAKUKAN DI SINI ---
+    # 1. Kelompokkan objek sesi berdasarkan tanggal (WIB)
+    sessions_by_date = {}
     for sesi in sessions:
+        raw_date = sesi.get('date', '')
+        date_str = "Lainnya"
+        if raw_date:
+            try:
+                clean_date = raw_date.split('.')[0].replace('Z', '')
+                dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
+                dt_wib = dt_utc + timedelta(hours=7)
+                date_str = dt_wib.strftime('%d/%m/%Y')
+            except:
+                date_str = raw_date[:10]
+        
+        if date_str not in sessions_by_date:
+            sessions_by_date[date_str] = []
+        sessions_by_date[date_str].append(sesi)
+        
+    unique_dates = list(sessions_by_date.keys())
+    
+    # 2. Tampilkan filter tanggal horizontal jika harinya ada lebih dari 1
+    if len(unique_dates) > 1:
+        selected_date = st.radio(
+            "📅 Pilih Tanggal Pelaksanaan Event:", 
+            unique_dates, 
+            horizontal=True, 
+            key=f"filter_date_{event_id}"
+        )
+        st.write("")
+    else:
+        selected_date = unique_dates[0] if unique_dates else None
+
+    # 3. Ambil sesi hanya untuk tanggal yang dipilih user
+    active_sessions = sessions_by_date.get(selected_date, []) if selected_date else sessions
+
+    has_data = False
+    for sesi in active_sessions:
         members = sesi.get('session_detail', [])
         
-        # Filter Search
         if search_query:
             members = [m for m in members if search_query in m.get('jkt48_member_name', '').lower()]
             
@@ -160,25 +189,10 @@ def render_event_cards(event_data, search_query):
             continue
             
         has_data = True
-        
-        # Ekstraksi Label & Waktu
         sesi_label = sesi.get('label', 'Sesi')
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
         
-        # --- FIX ZONAWAKTU (UTC ke WIB) ---
-        raw_date = sesi.get('date', '')
-        date_info = ""
-        if raw_date:
-            try:
-                clean_date = raw_date.split('.')[0].replace('Z', '')
-                dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
-                dt_wib = dt_utc + timedelta(hours=7)
-                date_info = f" ({dt_wib.strftime('%d/%m/%Y')})"
-            except:
-                date_info = f" ({raw_date[:10]})"
-        # ----------------------------------
-        
-        st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}{date_info}</small>", unsafe_allow_html=True)
+        st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}</small>", unsafe_allow_html=True)
         
         html = '<div class="cards-grid">'
         for m in members:
@@ -203,43 +217,36 @@ def render_event_cards(event_data, search_query):
         st.markdown(html + '</div>', unsafe_allow_html=True)
         
     if not has_data and search_query:
-        st.warning("Member tidak ditemukan pada event ini.")
+        st.warning("Member tidak ditemukan pada tanggal/sesi ini.")
 
 
 # --- 6. MAIN LAYOUT & DISCOVERY ---
 
-st.info("💡 **Petunjuk:** Pilih event dari dropdown di bawah, lalu klik tombol **SISA** pada member untuk membeli.")
+st.info("💡 **Petunjuk:** Pilih event dari dropdown, filter tanggal hari jika ada, lalu pantau sisa kuota member.")
 
-# 1. Tarik semua kode event dari API
 active_codes = get_active_exclusive_codes()
 
-# Fallback manual jika API list tiba-tiba gagal
 if not active_codes:
     active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
 
-# 2. Ambil payload JSON untuk masing-masing kode
 active_events = []
 for code in active_codes:
     data = fetch_exclusive_detail(code)
     if data and data.get('status') is not False: 
         active_events.append(data)
 
-# --- 3. FITUR SORTING (TERBARU) ---
-# Mengurutkan array event berdasarkan tanggal rilis/valid_date_from secara Descending (Paling baru di atas)
+# Sort event berdasarkan tanggal rils (terbaru di atas)
 active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
-# 4. Render UI Dropdown & Konten
 if active_events:
     st.markdown('<div class="selectbox-container">', unsafe_allow_html=True)
     
-    # Mapping data ke dictionary untuk Dropdown
     event_options = {}
     for ev in active_events:
         cat = ev.get('category', '')
         icon = "📸" if cat == "TWO_SHOT" else "🤝" if cat == "PHOTOCARD" else "📱" if cat == "DIGITAL_PHOTOBOOK" else "🎟️"
         title = ev.get('title', 'Unknown Event')
         
-        # Ekstrak tanggal pembukaan untuk dimasukkan ke Label Dropdown
         raw_open_date = ev.get('valid_date_from', '')
         open_date_str = ""
         if raw_open_date:
@@ -250,39 +257,33 @@ if active_events:
             except:
                 pass
         
-        # Contoh Output: "📸 [15/06/2026] Team Passion, 2shot Yogyakarta"
         dropdown_label = f"{icon} {open_date_str}{title}"
-        
-        # Antisipasi kalau ada judul duplikat (streamlt error kalau selectbox ada key kembar)
         if dropdown_label in event_options:
             dropdown_label += f" ({ev.get('code', '')})"
             
         event_options[dropdown_label] = ev
     
-    # Render Dropdown layout
     col1, col2 = st.columns([2, 1])
     with col1:
-        selected_event_label = st.selectbox("📌 Pilih Event Exclusive (Diurutkan dari Terbaru):", list(event_options.keys()))
+        selected_event_label = st.selectbox("📌 Pilih Event Exclusive (Urutan Terbaru):", list(event_options.keys()))
     with col2:
         global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama member...").lower().strip()
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Ambil data event yang dipilih
     selected_event = event_options[selected_event_label]
     
-    # Render Judul & Meta Informasi
     st.markdown(f"### {selected_event.get('title', 'Event')}")
     meta_html = f"""
     <div style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">
         <b>Kategori:</b> {selected_event.get('category', '-').replace('_', ' ')} | 
-        <b>Harga Default:</b> Rp {selected_event.get('default_price', 0):,} | 
+        <b>Harga:</b> Rp {selected_event.get('default_price', 0):,} | 
         <b>Kuota Total:</b> {selected_event.get('total_quota', 0):,}
     </div>
     """
     st.markdown(meta_html, unsafe_allow_html=True)
     
-    # Render Grid Member
+    # Panggil fungsi render utama (Sekarang otomatis menghandle multi-date split)
     render_event_cards(selected_event, global_query)
 else:
-    st.error("Tidak ada event Exclusive yang sedang aktif atau sistem gagal menarik data dari server JKT48.")
+    st.error("Tidak ada event Exclusive yang aktif atau sistem gagal menarik data.")
