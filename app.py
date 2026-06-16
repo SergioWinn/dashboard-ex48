@@ -294,15 +294,15 @@ if active_events:
     # --- IMPLEMENTASI POPUP/EXPANDER (INSIGHT TERSEMBUNYI) ---
     # expanded=False memastikan panel ini tertutup rapi saat pertama kali dimuat
     with st.expander("📊 Lihat Analitik & Data Insight Penjualan (Sales Overview)", expanded=False):
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        # Ubah menjadi 3 kolom saja
+        col_m1, col_m2, col_m3 = st.columns(3)
+        
         with col_m1:
-            st.metric(label="Total Kapasitas", value=f"{total_capacity:,}")
+            st.metric(label="🎟️ Tiket Terjual", value=f"{total_sold:,}")
         with col_m2:
-            st.metric(label="Tiket Terjual", value=f"{total_sold:,}")
+            st.metric(label="📦 Sisa Kuota", value=f"{sisa_kuota:,}")
         with col_m3:
-            st.metric(label="Sisa Kuota", value=f"{sisa_kuota:,}")
-        with col_m4:
-            st.metric(label="Sold Rate", value=f"{sold_rate:.1f}%")
+            st.metric(label="🔥 Sold Rate (Kelarisan)", value=f"{sold_rate:.1f}%")
         
     # Render Grid Member langsung terlihat tanpa terhalang metrik
     render_event_cards(selected_event, global_query)
