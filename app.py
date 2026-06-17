@@ -269,4 +269,92 @@ def render_event_cards(event_data, search_query, available_only=False):
                 else: 
                     cls, lbl = "avail", f"SISA {current_quota}"
                 
-                html += f'<div class="ldp-card {cls}"><div class="c-jalur">{jalur_label}</div><div class
+                html += f'<div class="ldp-card {cls}"><div class="c-jalur">{jalur_label}</div><div class="c-member">{member_name}</div>{sold_text}<a href="{purchase_link}" target="_blank" class="badge-link"><div class="c-badge">{lbl}</div></a></div>'
+        
+        st.markdown(html + '</div>', unsafe_allow_html=True)
+
+
+# --- 6. MAIN LAYOUT & DISCOVERY ---
+
+st.info("💡 **Petunjuk:** Pilih event dari dropdown, filter tanggal hari jika ada, lalu pantau sisa kuota member.")
+
+active_codes = get_active_exclusive_codes()
+if not active_codes:
+    active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
+
+active_events = []
+for code in active_codes:
+    data = fetch_exclusive_detail(code)
+    if data and data.get('status') is not False: 
+        active_events.append(data)
+
+active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
+
+if active_events:
+    # --- RENDER KOTAK KONTROL UTAMA ---
+    with st.container(border=True):
+        col1, col2, col3 = st.columns([2.5, 1.5, 1])
+        with col1:
+            event_options = {}
+            for ev in active_events:
+                cat = ev.get('category', '')
+                icon = "📸" if cat == "TWO_SHOT" else "🤝" if cat == "PHOTOCARD" else "📱" if cat == "DIGITAL_PHOTOBOOK" else "🎟️"
+                title = ev.get('title', 'Unknown Event')
+                
+                raw_open_date = ev.get('valid_date_from', '')
+                open_date_str = ""
+                if raw_open_date:
+                    try:
+                        dt_utc = datetime.strptime(raw_open_date.split('.')[0].replace('Z', ''), "%Y-%m-%dT%H:%M:%S")
+                        dt_wib = dt_utc + timedelta(hours=7)
+                        open_date_str = f"[{dt_wib.strftime('%d/%m/%Y')}] "
+                    except:
+                        pass
+                
+                dropdown_label = f"{icon} {open_date_str}{title}"
+                if dropdown_label in event_options:
+                    dropdown_label += f" ({ev.get('code', '')})"
+                event_options[dropdown_label] = ev
+                
+            selected_event_label = st.selectbox("📌 Pilih Event Exclusive (Urutan Terbaru):", list(event_options.keys()))
+            
+        with col2:
+            global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama oshimu (misal: Michie, Gracie, Fritzy)...").lower().strip()
+            
+        with col3:
+            st.write("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True) # Penyelaras baris vertical
+            available_only = st.toggle("🟢 Hanya Available", value=False, help="Sembunyikan tiket yang sudah habis terjual atau yang sudah melewati batas waktu (deadline) pembelian teater.")
+            
+    selected_event = event_options[selected_event_label]
+    
+    # Judul & Meta Informasi
+    st.markdown(f"### {selected_event.get('title', 'Event')}")
+    st.caption(f"**Kategori:** {selected_event.get('category', '-').replace('_', ' ')} | **Harga:** Rp {selected_event.get('default_price', 0):,}")
+    
+    # --- INSIGHT METRICS KALKULASI ---
+    total_sold = 0
+    total_capacity = 0
+    for sesi in selected_event.get('session', []):
+        for m in sesi.get('session_detail', []):
+            sold = m.get('tickets_sold', 0)
+            avail = m.get('available_quota', 0)
+            total_sold += sold
+            total_capacity += (sold + avail)
+            
+    sisa_kuota = total_capacity - total_sold
+    sold_rate = (total_sold / total_capacity * 100) if total_capacity > 0 else 0.0
+    
+    # Render Expander Insight (3 Kolom Ringkas)
+    with st.expander("📊 Lihat Analitik & Data Insight Penjualan (Sales Overview)", expanded=False):
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.metric(label="🎟️ Tiket Terjual", value=f"{total_sold:,}")
+        with col_m2:
+            st.metric(label="📦 Sisa Kuota", value=f"{sisa_kuota:,}")
+        with col_m3:
+            st.metric(label="🔥 Sold Rate (Kelarisan)", value=f"{sold_rate:.1f}%")
+        
+    # Render Utama Grid Kartu Member
+    render_event_cards(selected_event, global_query, available_only)
+else:
+    st.error("Tidak ada event Exclusive yang aktif atau sistem gagal menarik data.")
