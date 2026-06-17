@@ -65,18 +65,18 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 
 @keyframes glow { 0% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } 50% { box-shadow: 0 0 15px rgba(251,191,36,0.3); } 100% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } }
 
-/* Foto Kabesha Fix - Dibikin bulat sempurna, fit cover, dan teks tersembunyi kalau error */
+/* Foto Kabesha Fix - Jurus Background Image (100% Full Cover Anti-Streamlit CSS) */
 .c-photo { 
-    width: 72px; 
-    height: 72px; 
+    width: 74px; 
+    height: 74px; 
     border-radius: 50%; 
-    object-fit: cover; 
-    object-position: center 10%; 
+    background-size: cover; 
+    background-position: center 10%; /* Menggeser fokus sedikit ke wajah */
+    background-repeat: no-repeat;
     margin: 0 auto 12px auto; 
-    border: 2px solid rgba(16, 185, 129, 0.3); 
+    border: 2px solid rgba(255, 255, 255, 0.9); /* Aksen border putih cerah */
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
     background-color: #2a2a2a; 
-    display: block;
-    color: transparent; 
 }
 
 .c-jalur { font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; width: 100%; }
@@ -322,7 +322,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             
             # Panggil fungsi konverter rahasia kita
             photo_data = get_image_base64(raw_photo_url)
-            img_html = f'<img src="{photo_data}" class="c-photo" alt="{member_name}">'
+            # Render sebagai div background-image, bukan tag img biasa
+            img_html = f'<div class="c-photo" style="background-image: url(\'{photo_data}\');" title="{member_name}"></div>'
             
             sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
             
