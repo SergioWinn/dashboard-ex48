@@ -474,9 +474,9 @@ active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
 # --- CASCADING DROPDOWNS SYSTEM ---
 categories_dict = {
-    "📱 Digital Photobook (Video Call)": [],
-    "📸 Two Shot": [],
-    "🤝 Photocard (Meet & Greet / Festival)": [],
+    "📱 Video Call": [],
+    "📸 2-shot": [],
+    "🤝 Meet & Greet": [],
     "🎟️ Event Eksklusif Lainnya": []
 }
 
