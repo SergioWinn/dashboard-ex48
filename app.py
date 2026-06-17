@@ -79,15 +79,15 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 
 /* --- SMART PROGRESS BUTTON (UI Upgrade) --- */
 .c-stats { 
-    font-size: 10px; 
+    font-size: 11px; 
     color: #888; 
     margin-bottom: 6px; 
     display: flex; 
-    justify-content: space-between; 
+    justify-content: center;
     width: 100%; 
     padding: 0 4px; 
 }
-.c-stats b { color: #ccc; }
+.c-stats b { color: #ccc; margin-left: 3px; }
 
 .c-prog-btn { 
     position: relative; 
@@ -372,22 +372,29 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             total_slot_capacity = tickets_sold + current_quota
             sold_percentage = (tickets_sold / total_slot_capacity * 100) if total_slot_capacity > 0 else 0
             
-            if current_quota <= 0 or not is_before_deadline:
+            # Pemisahan status TUTUP (lewat waktu) dan HABIS (kuota 0)
+            if not is_before_deadline:
+                cls, btn_text = "sold", "TUTUP"
+                sold_percentage = 100
+                bar_color = "#EF4444"
+            elif current_quota <= 0:
                 cls, btn_text = "sold", "HABIS"
                 sold_percentage = 100
+                bar_color = "#EF4444"
             elif current_quota < warn_limit:
                 cls, btn_text = "warn", f"SISA {current_quota}"
+                bar_color = "#FBBF24"
             else:
                 cls, btn_text = "avail", f"SISA {current_quota}"
+                bar_color = "#10B981"
                 
-            # Kombinasi teks kecil dan tombol dinamis
+            # Info Total dihapus, menyisakan Terjual di tengah
             combined_ui = f"""
             <div class="c-stats">
                 <span>Terjual: <b>{tickets_sold}</b></span>
-                <span>Total: <b>{total_slot_capacity}</b></span>
             </div>
             <div class="c-prog-btn">
-                <div class="c-prog-fill" style="width: {sold_percentage}%;"></div>
+                <div class="c-prog-fill" style="width: {sold_percentage}%; background-color: {bar_color};"></div>
                 <div class="c-prog-text">{btn_text}</div>
             </div>
             """
