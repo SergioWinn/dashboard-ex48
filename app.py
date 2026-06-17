@@ -492,13 +492,13 @@ for ev in active_events:
     
     # Penentuan Label Kategori
     if cat == "DIGITAL_PHOTOBOOK":
-        cat_label = "📱 Digital Photobook (Video Call)"
+        cat_label = "📱 Video Call"
     elif cat == "TWO_SHOT":
-        cat_label = "📸 Two Shot"
+        cat_label = "📸 2-shot"
     elif cat == "PHOTOCARD":
-        cat_label = "🤝 Photocard (Meet & Greet / Festival)"
+        cat_label = "🤝 Meet & Greet"
     else:
-        cat_label = "🎟️ Event Eksklusif Lainnya"
+        cat_label = "🎟️ Lainnya"
         
     # Auto-create key jika belum ada, jadi 100% mustahil kena KeyError
     categories_dict.setdefault(cat_label, []).append(ev_info)
