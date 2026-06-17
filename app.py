@@ -10,7 +10,7 @@ st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon
 # --- 2. PREMIUM UI STYLING ---
 css = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;700;800&display=swap');
 html, body, .stApp { font-family: 'Inter', sans-serif; }
 .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1400px; }
 
@@ -35,7 +35,7 @@ html, body, .stApp { font-family: 'Inter', sans-serif; }
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; justify-content: center; margin-bottom: 30px; }
 
 /* Link Badge Styling */
-a.badge-link { text-decoration: none !important; display: block; margin-top: auto; }
+a.badge-link { text-decoration: none !important; display: block; margin-top: auto; width: 100%; }
 
 /* Card Design */
 .ldp-card { 
@@ -60,7 +60,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 
 @keyframes glow { 0% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } 50% { box-shadow: 0 0 15px rgba(251,191,36,0.3); } 100% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } }
 
-/* Foto Kabesha Fix - CDN Proxy Async */
+/* Foto Kabesha CDN Proxy Async */
 .c-photo { 
     width: 74px; 
     height: 74px; 
@@ -76,12 +76,56 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 
 .c-jalur { font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; width: 100%; }
 .c-member { font-weight: 700; font-size: 15px; line-height: 1.2; margin-bottom: 8px; height: 2.4em; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 100%; }
-.c-sold { font-size: 11px; font-weight: 600; color: #888; margin-bottom: 15px; background: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px; }
 
-.c-badge { font-size: 10px; font-weight: 800; padding: 7px; border-radius: 20px; text-transform: uppercase; width: 100%; display: block; }
-.ldp-card.avail .c-badge { background: rgba(16,185,129,0.15); color: #10B981; cursor: pointer; }
-.ldp-card.warn .c-badge { background: rgba(251,191,36,0.2); color: #D97706; cursor: pointer; }
-.ldp-card.sold .c-badge { background: #EF4444; color: #fff; cursor: not-allowed; }
+/* --- SMART PROGRESS BUTTON (UI Upgrade) --- */
+.c-stats { 
+    font-size: 11px; 
+    color: #888; 
+    margin-bottom: 6px; 
+    display: flex; 
+    justify-content: center;
+    width: 100%; 
+    padding: 0 4px; 
+}
+.c-stats b { color: #ccc; margin-left: 3px; }
+
+.c-prog-btn { 
+    position: relative; 
+    width: 100%; 
+    height: 32px; 
+    background: rgba(255,255,255,0.05); 
+    border-radius: 8px; 
+    overflow: hidden; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    border: 1px solid rgba(255,255,255,0.1); 
+    transition: all 0.2s ease; 
+}
+.c-prog-btn:hover { border-color: rgba(255,255,255,0.3); transform: translateY(-1px); }
+.c-prog-fill { 
+    position: absolute; 
+    left: 0; 
+    top: 0; 
+    height: 100%; 
+    transition: width 0.5s ease; 
+    z-index: 0; 
+}
+
+/* Pewarnaan Indikator Fill Button */
+.ldp-card.avail .c-prog-fill { background: rgba(16,185,129, 0.8); }
+.ldp-card.warn .c-prog-fill { background: rgba(217,119,6, 0.8); }
+.ldp-card.sold .c-prog-fill { background: rgba(239,68,68, 0.8); }
+
+.c-prog-text { 
+    position: relative; 
+    z-index: 1; 
+    font-size: 11px; 
+    font-weight: 800; 
+    color: #fff; 
+    letter-spacing: 0.5px; 
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8); 
+}
 
 /* Mobile optimization */
 @media (max-width: 500px) { 
@@ -95,7 +139,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 """
 st.markdown(css.replace('\n', '').replace('\r', ''), unsafe_allow_html=True)
 
-# --- 3. RENDER HEADER ---
+# --- RENDER HEADER UTAMA ---
 st.markdown(
     """
     <div class="ldp-header">
@@ -111,7 +155,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 4. DATA ENGINE ---
+# --- 3. DATA ENGINE ---
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Referer": "https://jkt48.com/",
@@ -192,9 +236,14 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 except:
                     pass
 
-    mapped_query = nickname_map.get(search_query, search_query) if search_query else ""
+    # --- FUZZY SEARCH ---
+    matched_full_names = set()
+    if search_query:
+        for nick, full_name in nickname_map.items():
+            if search_query in nick or search_query in full_name:
+                matched_full_names.add(full_name)
+
     sessions_by_date = {}
-    
     for sesi in sessions:
         is_before_deadline = True
         raw_date = sesi.get('date', '')
@@ -222,8 +271,13 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                     pass
 
         members = sesi.get('session_detail', [])
-        if mapped_query:
-            members = [m for m in members if mapped_query in m.get('jkt48_member_name', '').lower()]
+        
+        if search_query:
+            members = [
+                m for m in members 
+                if m.get('jkt48_member_name', '').lower() in matched_full_names 
+                or search_query in m.get('jkt48_member_name', '').lower()
+            ]
             
         if available_only:
             if not is_before_deadline:
@@ -235,7 +289,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
 
         date_str = "Lainnya"
         if session_date_wib:
-            date_str = session_date_wib.strftime('%d/%m/%Y')
+            if session_date_wib.date() == now_wib.date():
+                date_str = f"{session_date_wib.strftime('%d/%m/%Y')} (Hari Ini)"
+            elif session_date_wib.date() == (now_wib + timedelta(days=1)).date():
+                date_str = f"{session_date_wib.strftime('%d/%m/%Y')} (Besok)"
+            else:
+                date_str = session_date_wib.strftime('%d/%m/%Y')
         elif raw_date:
             date_str = raw_date[:10]
 
@@ -250,26 +309,20 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
 
     unique_dates = list(sessions_by_date.keys())
 
-    # --- 4. LOGIKA NAVIGASI INTERFACE ---
     if search_query:
-        # Mode Cari Nama
         active_sessions = []
         for d_sessions in sessions_by_date.values():
             active_sessions.extend(d_sessions)
         if active_sessions:
             st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query.title()}'** lintas tanggal.")
     else:
-        # --- PERBAIKAN: TAMPILKAN TANGGAL MESKI HANYA SATU ---
         if len(unique_dates) > 0:
-            # Tampilkan informasi tanggal yang sedang aktif
             st.markdown(f"📅 **Tanggal Pelaksanaan:** {unique_dates[0] if len(unique_dates) == 1 else ''}")
-            
             if len(unique_dates) > 1:
                 selected_date = st.radio("Pilih Tanggal:", unique_dates, horizontal=True, key=f"filter_date_{event_id}", label_visibility="collapsed")
                 st.write("")
             else:
                 selected_date = unique_dates[0]
-            
             active_sessions = sessions_by_date.get(selected_date, [])
         else:
             active_sessions = []
@@ -285,7 +338,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         members = sesi['filtered_members']
         is_before_deadline = sesi['is_before_deadline']
         session_date_wib = sesi['session_date_wib']
-        
+
         raw_label = sesi.get('label', 'Sesi')
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
@@ -300,11 +353,9 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             tickets_sold = m.get('tickets_sold', 0)
             jalur_label = m.get("label", "-")
             
-            # --- RENDER KABESHA (WSRV PUBLIC CDN PROXY) ---
             safe_name = member_name.strip().lower()
             raw_photo_url = photo_map.get(safe_name, "")
             
-            # Bypass Cloudflare & Kompres otomatis menjadi WEBP super ringan
             if raw_photo_url:
                 proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=100&output=webp"
             else:
@@ -312,46 +363,65 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 
             img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" title="{member_name}"></div>'
             
-            sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
+            # --- SMART PROGRESS BUTTON LOGIC ---
+            total_slot_capacity = tickets_sold + current_quota
+            sold_percentage = (tickets_sold / total_slot_capacity * 100) if total_slot_capacity > 0 else 0
+            
+            # Pemisahan status TUTUP (lewat waktu) dan HABIS (kuota 0)
+            if not is_before_deadline:
+                cls, btn_text = "sold", "TUTUP"
+                sold_percentage = 100
+                bar_color = "#EF4444"
+            elif current_quota <= 0:
+                cls, btn_text = "sold", "HABIS"
+                sold_percentage = 100
+                bar_color = "#EF4444"
+            elif current_quota < warn_limit:
+                cls, btn_text = "warn", f"SISA {current_quota}"
+                bar_color = "#FBBF24"
+            else:
+                cls, btn_text = "avail", f"SISA {current_quota}"
+                bar_color = "#10B981"
+                
+            # Info Total dihapus, menyisakan Terjual di tengah
+            combined_ui = f"""
+            <div class="c-stats">
+                <span>Terjual: <b>{tickets_sold}</b></span>
+            </div>
+            <div class="c-prog-btn">
+                <div class="c-prog-fill" style="width: {sold_percentage}%; background-color: {bar_color};"></div>
+                <div class="c-prog-text">{btn_text}</div>
+            </div>
+            """
             
             if current_quota <= 0 or not is_before_deadline: 
-                cls, lbl = "sold", "CLOSED" if not is_before_deadline else "HABIS"
                 html += (
                     f'<div class="ldp-card {cls}">'
                     f'<div class="c-jalur">{jalur_label}</div>'
                     f'{img_html}'
                     f'<div class="c-member">{member_name}</div>'
-                    f'{sold_text}'
-                    f'<div class="c-badge">{lbl}</div>'
+                    f'<div style="margin-top: auto; width: 100%;">'
+                    f'{combined_ui}'
+                    f'</div>'
                     f'</div>'
                 )
             else: 
-                if current_quota < warn_limit: 
-                    cls, lbl = "warn", f"SISA {current_quota}"
-                else: 
-                    cls, lbl = "avail", f"SISA {current_quota}"
-                
                 html += (
                     f'<div class="ldp-card {cls}">'
                     f'<div class="c-jalur">{jalur_label}</div>'
                     f'{img_html}'
                     f'<div class="c-member">{member_name}</div>'
-                    f'{sold_text}'
                     f'<a href="{purchase_link}" target="_blank" class="badge-link">'
-                    f'<div class="c-badge">{lbl}</div>'
+                    f'{combined_ui}'
                     f'</a>'
                     f'</div>'
                 )
         st.markdown(html + '</div>', unsafe_allow_html=True)
 
 
-# --- 5. STREAMLIT FRAGMENT: ISOLASI AUTO-REFRESH ---
+# --- 4. STREAMLIT FRAGMENT: ISOLASI AUTO-REFRESH ---
 @st.fragment(run_every=5)
 def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, available_only):
-    """
-    Fungsi ini berjalan secara independen setiap 5 detik tanpa merusak Dropdown/Input text di luarnya.
-    Sistem HANYA menarik data untuk 1 event ini saja, menghemat koneksi 90%.
-    """
     fresh_event_data = fetch_exclusive_detail(event_code)
     
     if not fresh_event_data:
@@ -359,32 +429,34 @@ def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, a
         return
         
     total_sold = 0
-    total_capacity = 0
+    sisa_kuota = 0
+    
+    # Kalkulasi dasar
     for sesi in fresh_event_data.get('session', []):
         for m in sesi.get('session_detail', []):
             sold = m.get('tickets_sold', 0)
             avail = m.get('available_quota', 0)
             total_sold += sold
-            total_capacity += (sold + avail)
+            sisa_kuota += avail
             
-    sisa_kuota = total_capacity - total_sold
-    sold_rate = (total_sold / total_capacity * 100) if total_capacity > 0 else 0.0
-    
-    with st.expander("📊 Lihat Analitik & Data Insight Penjualan (Sales Overview)", expanded=False):
+    # Kalkulasi Metrik Baru
+    total_tiket = total_sold + sisa_kuota
+    sold_rate = (total_sold / total_tiket * 100) if total_tiket > 0 else 0.0
+            
+    # Render Metrik Strip yang lebih ringkas dan to the point
+    with st.container(border=True):
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1:
-            st.metric(label="🎟️ Tiket Terjual", value=f"{total_sold:,}")
+            st.metric(label="🎟️ Total Tiket", value=f"{total_tiket:,}")
         with col_m2:
-            st.metric(label="📦 Sisa Kuota", value=f"{sisa_kuota:,}")
+            st.metric(label="📦 Tiket Sisa", value=f"{sisa_kuota:,}")
         with col_m3:
-            st.metric(label="🔥 Sold Rate (Kelarisan)", value=f"{sold_rate:.1f}%")
+            st.metric(label="🔥 Rate Terjual", value=f"{sold_rate:.1f}%")
             
     render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only)
 
 
-# --- 6. MAIN LAYOUT & DISCOVERY ---
-st.info("💡 **Petunjuk:** Pilih event dari dropdown, filter tanggal hari jika ada, lalu pantau sisa kuota member.")
-
+# --- 5. MAIN LAYOUT & DISCOVERY ---
 nickname_map, photo_map = get_member_database()
 
 active_codes = get_active_exclusive_codes()
@@ -392,7 +464,6 @@ if not active_codes:
     active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
 
 active_events = []
-
 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
     results = executor.map(fetch_exclusive_detail, active_codes)
     for data in results:
@@ -401,47 +472,66 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
 
 active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
-if active_events:
+# --- CASCADING DROPDOWNS SYSTEM ---
+categories_dict = {
+    "📱 Video Call": [],
+    "📸 2-shot": [],
+    "🤝 Meet & Greet": [],
+    "🎟️ Event Eksklusif Lainnya": []
+}
+
+for ev in active_events:
+    cat = ev.get('category', '')
+    title = ev.get('title', 'Unknown Event')
+    raw_open_date = ev.get('valid_date_from', '')
+    open_date_str = ""
+    if raw_open_date:
+        try:
+            dt_wib = datetime.strptime(raw_open_date.split('.')[0].replace('Z', ''), "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+            open_date_str = f"[{dt_wib.strftime('%d/%m/%Y')}] "
+        except:
+            pass
+            
+    dropdown_label = f"{open_date_str}{title}"
+    ev_info = {"label": dropdown_label, "data": ev}
+    
+    if cat == "DIGITAL_PHOTOBOOK":
+        categories_dict["📱 Digital Photobook (Video Call)"].append(ev_info)
+    elif cat == "TWO_SHOT":
+        categories_dict["📸 Two Shot"].append(ev_info)
+    elif cat == "PHOTOCARD":
+        categories_dict["🤝 Photocard (Meet & Greet / Festival)"].append(ev_info)
+    else:
+        categories_dict["🎟️ Event Eksklusif Lainnya"].append(ev_info)
+
+available_categories = {k: v for k, v in categories_dict.items() if len(v) > 0}
+
+if available_categories:
     with st.container(border=True):
-        col1, col2, col3 = st.columns([2.5, 1.5, 1])
-        with col1:
-            event_options = {}
-            for ev in active_events:
-                cat = ev.get('category', '')
-                icon = "📸" if cat == "TWO_SHOT" else "🤝" if cat == "PHOTOCARD" else "📱" if cat == "DIGITAL_PHOTOBOOK" else "🎟️"
-                title = ev.get('title', 'Unknown Event')
-                
-                raw_open_date = ev.get('valid_date_from', '')
-                open_date_str = ""
-                if raw_open_date:
-                    try:
-                        dt_utc = datetime.strptime(raw_open_date.split('.')[0].replace('Z', ''), "%Y-%m-%dT%H:%M:%S")
-                        dt_wib = dt_utc + timedelta(hours=7)
-                        open_date_str = f"[{dt_wib.strftime('%d/%m/%Y')}] "
-                    except:
-                        pass
-                
-                dropdown_label = f"{icon} {open_date_str}{title}"
-                if dropdown_label in event_options:
-                    dropdown_label += f" ({ev.get('code', '')})"
-                event_options[dropdown_label] = ev
-                
-            selected_event_label = st.selectbox("📌 Pilih Event Exclusive (Urutan Terbaru):", list(event_options.keys()))
+        col_cat, col_ev, col_search, col_toggle = st.columns([1.3, 2.5, 1.2, 1.2])
+        
+        with col_cat:
+            selected_cat = st.selectbox("🎯 Pilih Kategori:", list(available_categories.keys()))
             
-        with col2:
-            global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama oshimu...").lower().strip()
+        with col_ev:
+            events_in_cat = available_categories[selected_cat]
+            event_labels = [e["label"] for e in events_in_cat]
+            selected_event_label = st.selectbox("📌 Pilih Event JKT48:", event_labels)
             
-        with col3:
+            selected_event = next(e["data"] for e in events_in_cat if e["label"] == selected_event_label)
+            
+        with col_search:
+            global_query = st.text_input("🔍 Cari Nama/Nickname...", placeholder="Ketik Michie, Gracie, Mars...").lower().strip()
+            
+        with col_toggle:
             st.write("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True) 
-            available_only = st.toggle("🟢 Hanya Available", value=False, help="Sembunyikan tiket yang sudah habis terjual atau yang sudah melewati batas waktu (deadline).")
+            available_only = st.toggle("🟢 Tersedia Saja", value=False)
             
-    selected_event = event_options[selected_event_label]
     event_code = selected_event.get('code')
     
     st.markdown(f"### {selected_event.get('title', 'Event')}")
     st.caption(f"**Kategori:** {selected_event.get('category', '-').replace('_', ' ')} | **Harga:** Rp {selected_event.get('default_price', 0):,}")
     
-    # Memanggil fragment terisolasi
     live_dashboard_fragment(event_code, global_query, nickname_map, photo_map, available_only)
     
 else:
