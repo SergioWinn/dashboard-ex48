@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import re
 import concurrent.futures
+import base64
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -157,6 +158,21 @@ def fetch_exclusive_detail(code):
         pass
     return None
 
+@st.cache_data(ttl=86400) # Cache 24 jam agar server kamu tidak ngos-ngosan
+def get_image_base64(url):
+    """Mendownload gambar via backend dan mengubahnya ke Base64 (Anti-Hotlink Bypass)"""
+    if not url:
+        return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=5)
+        if r.status_code == 200:
+            encoded = base64.b64encode(r.content).decode()
+            ext = "png" if url.lower().endswith(".png") else "jpeg"
+            return f"data:image/{ext};base64,{encoded}"
+    except:
+        pass
+    return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+
 def render_event_cards(event_data, search_query, nickname_map, photo_map, available_only=False):
     event_id = event_data.get('code', '')
     category = event_data.get('category', 'GENERAL')
@@ -283,13 +299,13 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             tickets_sold = m.get('tickets_sold', 0)
             jalur_label = m.get("label", "-")
             
-            # --- RENDER KABESHA (FOTO MEMBER) ---
-            # Kita gunakan .strip().lower() agar pencocokan nama lebih tahan banting
+            # --- RENDER KABESHA (BASE64 BACKEND PROXY) ---
             safe_name = member_name.strip().lower()
-            photo_url = photo_map.get(safe_name, "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+            raw_photo_url = photo_map.get(safe_name, "")
             
-            # Tambahkan referrerpolicy="no-referrer" untuk bypass sistem Anti-Hotlink dari CDN JKT48
-            img_html = f'<img src="{photo_url}" class="c-photo" alt="{member_name}" referrerpolicy="no-referrer">'
+            # Panggil fungsi konverter rahasia kita
+            photo_data = get_image_base64(raw_photo_url)
+            img_html = f'<img src="{photo_data}" class="c-photo" alt="{member_name}">'
             
             sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
             
