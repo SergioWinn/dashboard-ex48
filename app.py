@@ -435,27 +435,28 @@ def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, a
         
     total_sold = 0
     sisa_kuota = 0
-    sold_out_members_count = 0
-    total_members_count = 0
     
+    # Kalkulasi dasar
     for sesi in fresh_event_data.get('session', []):
         for m in sesi.get('session_detail', []):
             sold = m.get('tickets_sold', 0)
             avail = m.get('available_quota', 0)
             total_sold += sold
             sisa_kuota += avail
-            total_members_count += 1
-            if avail <= 0:
-                sold_out_members_count += 1
             
+    # Kalkulasi Metrik Baru
+    total_tiket = total_sold + sisa_kuota
+    sold_rate = (total_sold / total_tiket * 100) if total_tiket > 0 else 0.0
+            
+    # Render Metrik Strip yang lebih ringkas dan to the point
     with st.container(border=True):
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1:
-            st.metric(label="🎟️ Total Tiket Terjual", value=f"{total_sold:,}")
+            st.metric(label="🎟️ Total Tiket", value=f"{total_tiket:,}")
         with col_m2:
-            st.metric(label="📦 Total Sisa Kuota", value=f"{sisa_kuota:,}")
+            st.metric(label="📦 Tiket Sisa", value=f"{sisa_kuota:,}")
         with col_m3:
-            st.metric(label="🔥 Member Sold Out", value=f"{sold_out_members_count} / {total_members_count} Member")
+            st.metric(label="🔥 Rate Terjual", value=f"{sold_rate:.1f}%")
             
     render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only)
 
