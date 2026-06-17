@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import re
+import concurrent.futures
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 
@@ -13,7 +14,7 @@ st_autorefresh(interval=5000, key="global_exclusive_refresh")
 # --- 3. PREMIUM UI STYLING ---
 css = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 html, body, .stApp { font-family: 'Inter', sans-serif; }
 .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1400px; }
 
@@ -309,10 +310,13 @@ if not active_codes:
     active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
 
 active_events = []
-for code in active_codes:
-    data = fetch_exclusive_detail(code)
-    if data and data.get('status') is not False: 
-        active_events.append(data)
+
+# --- MULTITHREADING FETCHING ---
+with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    results = executor.map(fetch_exclusive_detail, active_codes)
+    for data in results:
+        if data and data.get('status') is not False: 
+            active_events.append(data)
 
 active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
