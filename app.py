@@ -338,11 +338,6 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         members = sesi['filtered_members']
         is_before_deadline = sesi['is_before_deadline']
         session_date_wib = sesi['session_date_wib']
-        
-        def sort_by_critical_quota(m):
-            q = m.get('available_quota', 0)
-            return 999999 if q <= 0 else q
-        members.sort(key=sort_by_critical_quota)
 
         raw_label = sesi.get('label', 'Sesi')
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
