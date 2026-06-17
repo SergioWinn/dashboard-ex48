@@ -250,19 +250,29 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
 
     unique_dates = list(sessions_by_date.keys())
 
+    # --- 4. LOGIKA NAVIGASI INTERFACE ---
     if search_query:
+        # Mode Cari Nama
         active_sessions = []
         for d_sessions in sessions_by_date.values():
             active_sessions.extend(d_sessions)
         if active_sessions:
             st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query.title()}'** lintas tanggal.")
     else:
-        if len(unique_dates) > 1:
-            selected_date = st.radio("📅 Pilih Tanggal Pelaksanaan Event:", unique_dates, horizontal=True, key=f"filter_date_{event_id}")
-            st.write("")
+        # --- PERBAIKAN: TAMPILKAN TANGGAL MESKI HANYA SATU ---
+        if len(unique_dates) > 0:
+            # Tampilkan informasi tanggal yang sedang aktif
+            st.markdown(f"📅 **Tanggal Pelaksanaan:** {unique_dates[0] if len(unique_dates) == 1 else ''}")
+            
+            if len(unique_dates) > 1:
+                selected_date = st.radio("Pilih Tanggal:", unique_dates, horizontal=True, key=f"filter_date_{event_id}", label_visibility="collapsed")
+                st.write("")
+            else:
+                selected_date = unique_dates[0]
+            
+            active_sessions = sessions_by_date.get(selected_date, [])
         else:
-            selected_date = unique_dates[0] if unique_dates else None
-        active_sessions = sessions_by_date.get(selected_date, []) if selected_date else []
+            active_sessions = []
 
     if not active_sessions:
         if search_query:
