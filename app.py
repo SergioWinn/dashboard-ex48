@@ -119,8 +119,8 @@ def get_member_database():
             res_json = response.json()
             if res_json.get("status") is True and "data" in res_json:
                 for member in res_json["data"]:
-                    name = member.get("name", "").lower()
-                    nickname = member.get("nickname", "").lower()
+                    name = member.get("name", "").strip().lower()
+                    nickname = member.get("nickname", "").strip().lower()
                     photo = member.get("photo", "")
                     
                     if nickname and name:
@@ -284,9 +284,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             jalur_label = m.get("label", "-")
             
             # --- RENDER KABESHA (FOTO MEMBER) ---
-            # Jika foto tidak ditemukan, pakai gambar default transparan
-            photo_url = photo_map.get(member_name.lower(), "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
-            img_html = f'<img src="{photo_url}" class="c-photo" alt="{member_name}">'
+            # Kita gunakan .strip().lower() agar pencocokan nama lebih tahan banting
+            safe_name = member_name.strip().lower()
+            photo_url = photo_map.get(safe_name, "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+            
+            # Tambahkan referrerpolicy="no-referrer" untuk bypass sistem Anti-Hotlink dari CDN JKT48
+            img_html = f'<img src="{photo_url}" class="c-photo" alt="{member_name}" referrerpolicy="no-referrer">'
             
             sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
             
