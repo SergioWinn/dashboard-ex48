@@ -370,7 +370,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             # Pemisahan status TUTUP (lewat waktu) dan HABIS (kuota 0)
             if not is_before_deadline:
                 cls, btn_text = "sold", "TUTUP"
-                sold_percentage = 100
+                # sold_percentage TIDAK kita paksa 100, biarkan menampilkan progres aktual saat ditutup
                 bar_color = "#EF4444"
             elif current_quota <= 0:
                 cls, btn_text = "sold", "HABIS"
@@ -383,7 +383,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 cls, btn_text = "avail", f"SISA {current_quota}"
                 bar_color = "#10B981"
                 
-            # Info Total dihapus, menyisakan Terjual di tengah
+            # Info Terjual di tengah
             combined_ui = f"""
             <div class="c-stats">
                 <span>Terjual: <b>{tickets_sold}</b></span>
