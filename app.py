@@ -143,39 +143,46 @@ def render_event_cards(event_data, search_query):
         st.info("Sesi belum tersedia untuk event ini.")
         return
 
-    # --- STRATEGI SEPARASI TANGGAL ---
-    sessions_by_date = {}
-    for sesi in sessions:
-        raw_date = sesi.get('date', '')
-        date_str = "Lainnya"
-        if raw_date:
-            try:
-                clean_date = raw_date.split('.')[0].replace('Z', '')
-                dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
-                dt_wib = dt_utc + timedelta(hours=7)
-                date_str = dt_wib.strftime('%d/%m/%Y')
-            except:
-                date_str = raw_date[:10]
-        
-        if date_str not in sessions_by_date:
-            sessions_by_date[date_str] = []
-        sessions_by_date[date_str].append(sesi)
-        
-    unique_dates = list(sessions_by_date.keys())
-    
-    if len(unique_dates) > 1:
-        selected_date = st.radio(
-            "📅 Pilih Tanggal Pelaksanaan Event:", 
-            unique_dates, 
-            horizontal=True, 
-            key=f"filter_date_{event_id}"
-        )
-        st.write("")
+    # --- MODIFIKASI: GLOBAL SEARCH OVERRIDE ---
+    if search_query:
+        # Jika ada pencarian, bypass filter tanggal dan gunakan semua sesi
+        active_sessions = sessions
+        st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query}'** lintas tanggal.")
     else:
-        selected_date = unique_dates[0] if unique_dates else None
+        # Jika kotak pencarian kosong, jalankan sistem grouping tanggal seperti biasa
+        sessions_by_date = {}
+        for sesi in sessions:
+            raw_date = sesi.get('date', '')
+            date_str = "Lainnya"
+            if raw_date:
+                try:
+                    clean_date = raw_date.split('.')[0].replace('Z', '')
+                    dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
+                    dt_wib = dt_utc + timedelta(hours=7)
+                    date_str = dt_wib.strftime('%d/%m/%Y')
+                except:
+                    date_str = raw_date[:10]
+            
+            if date_str not in sessions_by_date:
+                sessions_by_date[date_str] = []
+            sessions_by_date[date_str].append(sesi)
+            
+        unique_dates = list(sessions_by_date.keys())
+        
+        if len(unique_dates) > 1:
+            selected_date = st.radio(
+                "📅 Pilih Tanggal Pelaksanaan Event:", 
+                unique_dates, 
+                horizontal=True, 
+                key=f"filter_date_{event_id}"
+            )
+            st.write("")
+        else:
+            selected_date = unique_dates[0] if unique_dates else None
 
-    active_sessions = sessions_by_date.get(selected_date, []) if selected_date else sessions
+        active_sessions = sessions_by_date.get(selected_date, []) if selected_date else sessions
 
+    # --- RENDER KARTU MEMBER ---
     has_data = False
     for sesi in active_sessions:
         members = sesi.get('session_detail', [])
@@ -187,14 +194,26 @@ def render_event_cards(event_data, search_query):
             continue
             
         has_data = True
-        # --- Ekstraksi Label Dinamis (Tanpa Hardcode) ---
+        
+        # Ekstraksi Label Bersih (Menghilangkan nama tim)
         raw_label = sesi.get('label', 'Sesi')
-        # Memisahkan teks berdasarkan tanda '(' atau '·', lalu ambil elemen pertamanya
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
         
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
         
-        st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}</small>", unsafe_allow_html=True)
+        # Ekstraksi Tanggal WIB untuk di header sesi
+        raw_date = sesi.get('date', '')
+        date_info = ""
+        if raw_date:
+            try:
+                clean_date = raw_date.split('.')[0].replace('Z', '')
+                dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
+                dt_wib = dt_utc + timedelta(hours=7)
+                date_info = f" ({dt_wib.strftime('%d/%m/%Y')})"
+            except:
+                date_info = f" ({raw_date[:10]})"
+        
+        st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}{date_info}</small>", unsafe_allow_html=True)
         
         html = '<div class="cards-grid">'
         for m in members:
@@ -219,7 +238,7 @@ def render_event_cards(event_data, search_query):
         st.markdown(html + '</div>', unsafe_allow_html=True)
         
     if not has_data and search_query:
-        st.warning("Member tidak ditemukan pada tanggal/sesi ini.")
+        st.warning(f"Member '{search_query.title()}' tidak ditemukan pada event ini.")
 
 
 # --- 6. MAIN LAYOUT & DISCOVERY ---
