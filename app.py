@@ -2,17 +2,12 @@ import streamlit as st
 import requests
 import re
 import concurrent.futures
-import base64
 from datetime import datetime, timedelta
-from streamlit_autorefresh import st_autorefresh
 
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon="🔴")
 
-# --- 2. STABLE REFRESH (5 Detik) ---
-st_autorefresh(interval=5000, key="global_exclusive_refresh")
-
-# --- 3. PREMIUM UI STYLING ---
+# --- 2. PREMIUM UI STYLING ---
 css = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
@@ -65,16 +60,16 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 
 @keyframes glow { 0% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } 50% { box-shadow: 0 0 15px rgba(251,191,36,0.3); } 100% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } }
 
-/* Foto Kabesha Fix - Jurus Background Image (100% Full Cover Anti-Streamlit CSS) */
+/* Foto Kabesha Fix - CDN Proxy Async */
 .c-photo { 
     width: 74px; 
     height: 74px; 
     border-radius: 50%; 
     background-size: cover; 
-    background-position: center 10%; /* Menggeser fokus sedikit ke wajah */
+    background-position: center 10%; 
     background-repeat: no-repeat;
     margin: 0 auto 12px auto; 
-    border: 2px solid rgba(255, 255, 255, 0.9); /* Aksen border putih cerah */
+    border: 2px solid rgba(255, 255, 255, 0.9); 
     box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
     background-color: #2a2a2a; 
 }
@@ -100,7 +95,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 """
 st.markdown(css.replace('\n', '').replace('\r', ''), unsafe_allow_html=True)
 
-# --- 4. RENDER HEADER ---
+# --- 3. RENDER HEADER ---
 st.markdown(
     """
     <div class="ldp-header">
@@ -116,17 +111,15 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 5. DATA ENGINE ---
-# HEADERS di-upgrade untuk memalsukan request agar diperbolehkan oleh CDN JKT48
+# --- 4. DATA ENGINE ---
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Referer": "https://jkt48.com/",
     "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
 }
 
-@st.cache_data(ttl=3600) # Cache 1 jam agar hemat resource
+@st.cache_data(ttl=3600)
 def get_member_database():
-    """Mengambil list nama, nickname, dan foto dari API Members JKT48."""
     url = "https://jkt48.com/api/v1/members?lang=id"
     nickname_map = {}
     photo_map = {}
@@ -187,8 +180,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         return
 
     now_wib = datetime.utcnow() + timedelta(hours=7)
-
     general_end_wib = None
+    
     for period in event_data.get('sales_period', []):
         if not period.get('is_ofc_only', False) or period.get('label') == 'General':
             ed = period.get('end_date')
@@ -199,10 +192,9 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 except:
                     pass
 
-    # --- TRANSLASI QUERY NICKNAME DINAMIS ---
     mapped_query = nickname_map.get(search_query, search_query) if search_query else ""
-
     sessions_by_date = {}
+    
     for sesi in sessions:
         is_before_deadline = True
         raw_date = sesi.get('date', '')
@@ -230,8 +222,6 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                     pass
 
         members = sesi.get('session_detail', [])
-        
-        # GUNAKAN MAPPED QUERY UNTUK FILTER
         if mapped_query:
             members = [m for m in members if mapped_query in m.get('jkt48_member_name', '').lower()]
             
@@ -300,18 +290,16 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             tickets_sold = m.get('tickets_sold', 0)
             jalur_label = m.get("label", "-")
             
-            # --- RENDER KABESHA (VIA CDN PROXY ASYNC) ---
+            # --- RENDER KABESHA (WSRV PUBLIC CDN PROXY) ---
             safe_name = member_name.strip().lower()
             raw_photo_url = photo_map.get(safe_name, "")
             
-            # Gunakan Image Proxy untuk bypass anti-hotlink JKT48 + Auto Resize agar super ringan
+            # Bypass Cloudflare & Kompres otomatis menjadi WEBP super ringan
             if raw_photo_url:
-                # Parameter w=100 me-resize gambar jadi 100px, output=webp mengompres ukuran file jadi hitungan KB
                 proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=100&output=webp"
             else:
                 proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-            
-            # Render sebagai div background-image
+                
             img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" title="{member_name}"></div>'
             
             sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
@@ -346,11 +334,47 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 )
         st.markdown(html + '</div>', unsafe_allow_html=True)
 
-# --- 6. MAIN LAYOUT & DISCOVERY ---
 
+# --- 5. STREAMLIT FRAGMENT: ISOLASI AUTO-REFRESH ---
+@st.fragment(run_every=5)
+def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, available_only):
+    """
+    Fungsi ini berjalan secara independen setiap 5 detik tanpa merusak Dropdown/Input text di luarnya.
+    Sistem HANYA menarik data untuk 1 event ini saja, menghemat koneksi 90%.
+    """
+    fresh_event_data = fetch_exclusive_detail(event_code)
+    
+    if not fresh_event_data:
+        st.warning("⏳ Menunggu pembaruan sinkronisasi data...")
+        return
+        
+    total_sold = 0
+    total_capacity = 0
+    for sesi in fresh_event_data.get('session', []):
+        for m in sesi.get('session_detail', []):
+            sold = m.get('tickets_sold', 0)
+            avail = m.get('available_quota', 0)
+            total_sold += sold
+            total_capacity += (sold + avail)
+            
+    sisa_kuota = total_capacity - total_sold
+    sold_rate = (total_sold / total_capacity * 100) if total_capacity > 0 else 0.0
+    
+    with st.expander("📊 Lihat Analitik & Data Insight Penjualan (Sales Overview)", expanded=False):
+        col_m1, col_m2, col_m3 = st.columns(3)
+        with col_m1:
+            st.metric(label="🎟️ Tiket Terjual", value=f"{total_sold:,}")
+        with col_m2:
+            st.metric(label="📦 Sisa Kuota", value=f"{sisa_kuota:,}")
+        with col_m3:
+            st.metric(label="🔥 Sold Rate (Kelarisan)", value=f"{sold_rate:.1f}%")
+            
+    render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only)
+
+
+# --- 6. MAIN LAYOUT & DISCOVERY ---
 st.info("💡 **Petunjuk:** Pilih event dari dropdown, filter tanggal hari jika ada, lalu pantau sisa kuota member.")
 
-# Init Database Member secara Global
 nickname_map, photo_map = get_member_database()
 
 active_codes = get_active_exclusive_codes()
@@ -402,32 +426,13 @@ if active_events:
             available_only = st.toggle("🟢 Hanya Available", value=False, help="Sembunyikan tiket yang sudah habis terjual atau yang sudah melewati batas waktu (deadline).")
             
     selected_event = event_options[selected_event_label]
+    event_code = selected_event.get('code')
     
     st.markdown(f"### {selected_event.get('title', 'Event')}")
     st.caption(f"**Kategori:** {selected_event.get('category', '-').replace('_', ' ')} | **Harga:** Rp {selected_event.get('default_price', 0):,}")
     
-    total_sold = 0
-    total_capacity = 0
-    for sesi in selected_event.get('session', []):
-        for m in sesi.get('session_detail', []):
-            sold = m.get('tickets_sold', 0)
-            avail = m.get('available_quota', 0)
-            total_sold += sold
-            total_capacity += (sold + avail)
-            
-    sisa_kuota = total_capacity - total_sold
-    sold_rate = (total_sold / total_capacity * 100) if total_capacity > 0 else 0.0
+    # Memanggil fragment terisolasi
+    live_dashboard_fragment(event_code, global_query, nickname_map, photo_map, available_only)
     
-    with st.expander("📊 Lihat Analitik & Data Insight Penjualan (Sales Overview)", expanded=False):
-        col_m1, col_m2, col_m3 = st.columns(3)
-        with col_m1:
-            st.metric(label="🎟️ Tiket Terjual", value=f"{total_sold:,}")
-        with col_m2:
-            st.metric(label="📦 Sisa Kuota", value=f"{sisa_kuota:,}")
-        with col_m3:
-            st.metric(label="🔥 Sold Rate (Kelarisan)", value=f"{sold_rate:.1f}%")
-        
-    # Mengirim parameter kamus nickname dan peta foto ke dalam fungsi render
-    render_event_cards(selected_event, global_query, nickname_map, photo_map, available_only)
 else:
     st.error("Tidak ada event Exclusive yang aktif atau sistem gagal menarik data.")
