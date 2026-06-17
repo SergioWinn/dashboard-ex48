@@ -174,22 +174,6 @@ def fetch_exclusive_detail(code):
         pass
     return None
 
-@st.cache_data(ttl=86400) # Cache 24 jam agar server kamu tidak ngos-ngosan
-def get_image_base64(url):
-    """Mendownload gambar via backend dan mengubahnya ke Base64 (Anti-Hotlink Bypass)"""
-    if not url:
-        return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-    try:
-        # Timeout dinaikkan ke 10 detik agar punya cukup waktu download gambar
-        r = requests.get(url, headers=HEADERS, timeout=10)
-        if r.status_code == 200:
-            encoded = base64.b64encode(r.content).decode()
-            ext = "png" if url.lower().endswith(".png") else "jpeg"
-            return f"data:image/{ext};base64,{encoded}"
-    except:
-        pass
-    return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-
 def render_event_cards(event_data, search_query, nickname_map, photo_map, available_only=False):
     event_id = event_data.get('code', '')
     category = event_data.get('category', 'GENERAL')
@@ -316,14 +300,19 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             tickets_sold = m.get('tickets_sold', 0)
             jalur_label = m.get("label", "-")
             
-            # --- RENDER KABESHA (BASE64 BACKEND PROXY) ---
+            # --- RENDER KABESHA (VIA CDN PROXY ASYNC) ---
             safe_name = member_name.strip().lower()
             raw_photo_url = photo_map.get(safe_name, "")
             
-            # Panggil fungsi konverter rahasia kita
-            photo_data = get_image_base64(raw_photo_url)
-            # Render sebagai div background-image, bukan tag img biasa
-            img_html = f'<div class="c-photo" style="background-image: url(\'{photo_data}\');" title="{member_name}"></div>'
+            # Gunakan Image Proxy untuk bypass anti-hotlink JKT48 + Auto Resize agar super ringan
+            if raw_photo_url:
+                # Parameter w=100 me-resize gambar jadi 100px, output=webp mengompres ukuran file jadi hitungan KB
+                proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=100&output=webp"
+            else:
+                proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+            
+            # Render sebagai div background-image
+            img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" title="{member_name}"></div>'
             
             sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
             
