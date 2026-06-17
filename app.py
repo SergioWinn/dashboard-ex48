@@ -158,43 +158,12 @@ def render_event_cards(event_data, search_query, available_only=False):
                 except:
                     pass
 
-    # --- SEPARASI TANGGAL ---
+    # --- SIFAT PRE-FILTERING SEBELUM MEMBENTUK GROUPING TANGGAL ---
     sessions_by_date = {}
-    for sesi in sessions:
-        raw_date = sesi.get('date', '')
-        date_str = "Lainnya"
-        if raw_date:
-            try:
-                clean_date = raw_date.split('.')[0].replace('Z', '')
-                dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
-                dt_wib = dt_utc + timedelta(hours=7)
-                date_str = dt_wib.strftime('%d/%m/%Y')
-            except:
-                date_str = raw_date[:10]
-        
-        if date_str not in sessions_by_date:
-            sessions_by_date[date_str] = []
-        sessions_by_date[date_str].append(sesi)
-        
-    unique_dates = list(sessions_by_date.keys())
     
-    # Mode normal: pilah per tanggal. Mode search: bypass tanggal
-    if search_query:
-        active_sessions = sessions
-        st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query}'** lintas tanggal.")
-    else:
-        if len(unique_dates) > 1:
-            selected_date = st.radio("📅 Pilih Tanggal Pelaksanaan Event:", unique_dates, horizontal=True, key=f"filter_date_{event_id}")
-            st.write("")
-        else:
-            selected_date = unique_dates[0] if unique_dates else None
-        active_sessions = sessions_by_date.get(selected_date, []) if selected_date else sessions
-
-    # --- RUN LOGIKA ITERASI SESI ---
-    for sesi in active_sessions:
-        # Evaluasi batas waktu (deadline) sesi ini secara dinamis
+    for sesi in sessions:
+        # 1. Evaluasi Batas Waktu (Deadline) Sesi Ini
         is_before_deadline = True
-        
         raw_date = sesi.get('date', '')
         session_date_wib = None
         if raw_date:
@@ -204,17 +173,14 @@ def render_event_cards(event_data, search_query, available_only=False):
             except:
                 pass
 
-        # Aturan Deadline Berdasarkan Kategori
         if category == "DIGITAL_PHOTOBOOK" and session_date_wib:
-            # Aturan VC: Jam 7 pagi WIB di Hari H Pelaksanaan Sesi
+            # Aturan Video Call: Maksimal jam 07:00 PAGI WIB di hari H
             vc_deadline = datetime.combine(session_date_wib.date(), datetime.strptime("07:00:00", "%H:%M:%S").time())
             is_before_deadline = now_wib < vc_deadline
         else:
-            # Aturan Biasa (2-Shot / PC): Cek General End Date Event
+            # Aturan Event Biasa
             if general_end_wib:
                 is_before_deadline = now_wib < general_end_wib
-            
-            # Pengaman: Jika jam sesi berakhir sudah lewat di hari H teater, otomatis ditutup
             if session_date_wib and sesi.get('end_time'):
                 try:
                     t_end = datetime.strptime(sesi.get('end_time'), "%H:%M:%S").time()
@@ -224,28 +190,75 @@ def render_event_cards(event_data, search_query, available_only=False):
                 except:
                     pass
 
+        # 2. Ambil dan Filter Member di Dalam Sesi Ini
         members = sesi.get('session_detail', [])
         
-        # Jalankan Filter Nama (Search)
         if search_query:
             members = [m for m in members if search_query in m.get('jkt48_member_name', '').lower()]
             
-        # Jalankan Filter Ketersediaan Aktual (Toggle Available Only)
         if available_only:
+            # Jika opsi Hanya Available aktif, sesi harus belom deadline DAN wajib ada sisa kuota
             if not is_before_deadline:
-                continue  # Sembunyikan seluruh sesi jika sudah lewat deadline
-            else:
-                members = [m for m in members if m.get('available_quota', 0) > 0]
-                
+                continue
+            members = [m for m in members if m.get('available_quota', 0) > 0]
+
+        # CRITICAL FIX: Jika sesi ini tidak menyisakan member lolos saring, buang seluruh sesi
         if not members:
             continue
+
+        # 3. Kelompokkan Sesi yang Lolos ke Dalam Tanggal
+        date_str = "Lainnya"
+        if session_date_wib:
+            date_str = session_date_wib.strftime('%d/%m/%Y')
+        elif raw_date:
+            date_str = raw_date[:10]
+
+        if date_str not in sessions_by_date:
+            sessions_by_date[date_str] = []
             
-        # Ekstraksi Label Sesi Bersih
+        # Simpan data yang sudah bersih ke dalam kluster tanggal
+        sesi_clean = sesi.copy()
+        sesi_clean['filtered_members'] = members
+        sesi_clean['is_before_deadline'] = is_before_deadline
+        sesi_clean['session_date_wib'] = session_date_wib
+        sessions_by_date[date_str].append(sesi_clean)
+
+    # Mengambil list tanggal aktual yang benar-benar berisi data lolos filter
+    unique_dates = list(sessions_by_date.keys())
+
+    # --- 4. LOGIKA NAVIGASI INTERFACE ---
+    if search_query:
+        # Mode Cari Nama: Bongkar semua kluster tanggal, jejerkan langsung ke bawah
+        active_sessions = []
+        for d_sessions in sessions_by_date.values():
+            active_sessions.extend(d_sessions)
+        if active_sessions:
+            st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query}'** lintas tanggal.")
+    else:
+        # Mode Monitor Normal: Tampilkan pilihan tanggal (Hanya tanggal yang ada isinya)
+        if len(unique_dates) > 1:
+            selected_date = st.radio("📅 Pilih Tanggal Pelaksanaan Event:", unique_dates, horizontal=True, key=f"filter_date_{event_id}")
+            st.write("")
+        else:
+            selected_date = unique_dates[0] if unique_dates else None
+        active_sessions = sessions_by_date.get(selected_date, []) if selected_date else []
+
+    if not active_sessions:
+        if search_query:
+            st.warning(f"Member '{search_query.title()}' tidak ditemukan pada event ini.")
+        else:
+            st.warning("🟢 Bersih! Tidak ada tiket atau sesi available yang aktif saat ini.")
+        return
+
+    # --- 5. RENDER UTAMA GRID KARTU ---
+    for sesi in active_sessions:
+        members = sesi['filtered_members']
+        is_before_deadline = sesi['is_before_deadline']
+        session_date_wib = sesi['session_date_wib']
+        
         raw_label = sesi.get('label', 'Sesi')
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
-        
-        # Tampilkan tanggal di header sesi jika dalam mode global search
         date_header = f" ({session_date_wib.strftime('%d/%m/%Y')})" if search_query and session_date_wib else ""
         
         st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}{date_header}</small>", unsafe_allow_html=True)
@@ -259,20 +272,33 @@ def render_event_cards(event_data, search_query, available_only=False):
             
             sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
             
-            # Logika pewarnaan card (Mendukung status CLOSED jika lewat jam deadline)
             if current_quota <= 0 or not is_before_deadline: 
                 cls, lbl = "sold", "CLOSED" if not is_before_deadline else "HABIS"
-                html += f'<div class="ldp-card {cls}"><div class="c-jalur">{jalur_label}</div><div class="c-member">{member_name}</div>{sold_text}<div class="c-badge">{lbl}</div></div>'
+                html += (
+                    f'<div class="ldp-card {cls}">'
+                    f'<div class="c-jalur">{jalur_label}</div>'
+                    f'<div class="c-member">{member_name}</div>'
+                    f'{sold_text}'
+                    f'<div class="c-badge">{lbl}</div>'
+                    f'</div>'
+                )
             else: 
                 if current_quota < warn_limit: 
                     cls, lbl = "warn", f"SISA {current_quota}"
                 else: 
                     cls, lbl = "avail", f"SISA {current_quota}"
                 
-                html += f'<div class="ldp-card {cls}"><div class="c-jalur">{jalur_label}</div><div class="c-member">{member_name}</div>{sold_text}<a href="{purchase_link}" target="_blank" class="badge-link"><div class="c-badge">{lbl}</div></a></div>'
-        
+                html += (
+                    f'<div class="ldp-card {cls}">'
+                    f'<div class="c-jalur">{jalur_label}</div>'
+                    f'<div class="c-member">{member_name}</div>'
+                    f'{sold_text}'
+                    f'<a href="{purchase_link}" target="_blank" class="badge-link">'
+                    f'<div class="c-badge">{lbl}</div>'
+                    f'</a>'
+                    f'</div>'
+                )
         st.markdown(html + '</div>', unsafe_allow_html=True)
-
 
 # --- 6. MAIN LAYOUT & DISCOVERY ---
 
