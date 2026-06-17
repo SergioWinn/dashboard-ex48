@@ -65,8 +65,19 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 
 @keyframes glow { 0% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } 50% { box-shadow: 0 0 15px rgba(251,191,36,0.3); } 100% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } }
 
-/* Foto Kabesha */
-.c-photo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; border: 2px solid rgba(128,128,128,0.2); background-color: rgba(128,128,128,0.1); }
+/* Foto Kabesha Fix - Dibikin bulat sempurna, fit cover, dan teks tersembunyi kalau error */
+.c-photo { 
+    width: 72px; 
+    height: 72px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+    object-position: center 10%; 
+    margin: 0 auto 12px auto; 
+    border: 2px solid rgba(16, 185, 129, 0.3); 
+    background-color: #2a2a2a; 
+    display: block;
+    color: transparent; 
+}
 
 .c-jalur { font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; width: 100%; }
 .c-member { font-weight: 700; font-size: 15px; line-height: 1.2; margin-bottom: 8px; height: 2.4em; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 100%; }
@@ -106,7 +117,12 @@ st.markdown(
 )
 
 # --- 5. DATA ENGINE ---
-HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+# HEADERS di-upgrade untuk memalsukan request agar diperbolehkan oleh CDN JKT48
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": "https://jkt48.com/",
+    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+}
 
 @st.cache_data(ttl=3600) # Cache 1 jam agar hemat resource
 def get_member_database():
@@ -164,7 +180,8 @@ def get_image_base64(url):
     if not url:
         return "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
     try:
-        r = requests.get(url, headers=HEADERS, timeout=5)
+        # Timeout dinaikkan ke 10 detik agar punya cukup waktu download gambar
+        r = requests.get(url, headers=HEADERS, timeout=10)
         if r.status_code == 200:
             encoded = base64.b64encode(r.content).decode()
             ext = "png" if url.lower().endswith(".png") else "jpeg"
