@@ -473,12 +473,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
 active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
 # --- CASCADING DROPDOWNS SYSTEM ---
-categories_dict = {
-    "📱 Video Call": [],
-    "📸 2-shot": [],
-    "🤝 Meet & Greet": [],
-    "🎟️ Event Eksklusif Lainnya": []
-}
+categories_dict = {}
 
 for ev in active_events:
     cat = ev.get('category', '')
@@ -495,15 +490,20 @@ for ev in active_events:
     dropdown_label = f"{open_date_str}{title}"
     ev_info = {"label": dropdown_label, "data": ev}
     
+    # Penentuan Label Kategori
     if cat == "DIGITAL_PHOTOBOOK":
-        categories_dict["📱 Digital Photobook (Video Call)"].append(ev_info)
+        cat_label = "📱 Digital Photobook (Video Call)"
     elif cat == "TWO_SHOT":
-        categories_dict["📸 Two Shot"].append(ev_info)
+        cat_label = "📸 Two Shot"
     elif cat == "PHOTOCARD":
-        categories_dict["🤝 Photocard (Meet & Greet / Festival)"].append(ev_info)
+        cat_label = "🤝 Photocard (Meet & Greet / Festival)"
     else:
-        categories_dict["🎟️ Event Eksklusif Lainnya"].append(ev_info)
+        cat_label = "🎟️ Event Eksklusif Lainnya"
+        
+    # Auto-create key jika belum ada, jadi 100% mustahil kena KeyError
+    categories_dict.setdefault(cat_label, []).append(ev_info)
 
+# Buat daftar kategori yang benar-benar memiliki data aktif
 available_categories = {k: v for k, v in categories_dict.items() if len(v) > 0}
 
 if available_categories:
