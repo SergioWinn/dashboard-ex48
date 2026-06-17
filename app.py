@@ -45,11 +45,12 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card { 
     background: rgba(128,128,128,0.05); 
     border-radius: 15px; 
-    padding: 24px 15px; 
+    padding: 20px 15px; 
     border: 1px solid rgba(128,128,128,0.15); 
     display: flex; 
     flex-direction: column; 
     justify-content: space-between; 
+    align-items: center;
     text-align: center; 
     transition: 0.3s ease;
     height: 100%;
@@ -63,23 +64,23 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 
 @keyframes glow { 0% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } 50% { box-shadow: 0 0 15px rgba(251,191,36,0.3); } 100% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } }
 
-.c-jalur { font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
-.c-member { font-weight: 700; font-size: 16px; line-height: 1.2; margin-bottom: 10px; height: 2.5em; overflow: hidden; }
-.c-sold { font-size: 11px; font-weight: 600; color: #888; margin-bottom: 15px; background: rgba(128,128,128,0.1); padding: 4px; border-radius: 6px; }
+/* Foto Kabesha */
+.c-photo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; border: 2px solid rgba(128,128,128,0.2); background-color: rgba(128,128,128,0.1); }
+
+.c-jalur { font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; width: 100%; }
+.c-member { font-weight: 700; font-size: 15px; line-height: 1.2; margin-bottom: 8px; height: 2.4em; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 100%; }
+.c-sold { font-size: 11px; font-weight: 600; color: #888; margin-bottom: 15px; background: rgba(128,128,128,0.1); padding: 4px 10px; border-radius: 6px; }
 
 .c-badge { font-size: 10px; font-weight: 800; padding: 7px; border-radius: 20px; text-transform: uppercase; width: 100%; display: block; }
 .ldp-card.avail .c-badge { background: rgba(16,185,129,0.15); color: #10B981; cursor: pointer; }
 .ldp-card.warn .c-badge { background: rgba(251,191,36,0.2); color: #D97706; cursor: pointer; }
 .ldp-card.sold .c-badge { background: #EF4444; color: #fff; cursor: not-allowed; }
 
-/* Custom Container Dropdown */
-.selectbox-container { margin-bottom: 25px; padding: 20px; background: rgba(128,128,128,0.05); border-radius: 15px; border: 1px solid rgba(128,128,128,0.15); }
-
 /* Mobile optimization */
 @media (max-width: 500px) { 
     .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } 
     .ldp-card { padding: 18px 10px; }
-    .c-member { font-size: 14px; }
+    .c-member { font-size: 13px; }
     .ldp-title { font-size: 2rem; }
     .credit-container { flex-direction: column; gap: 10px; }
 }
@@ -103,8 +104,32 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 5. DATA ENGINE (GENERAL API FETCHING) ---
+# --- 5. DATA ENGINE ---
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
+@st.cache_data(ttl=3600) # Cache 1 jam agar hemat resource
+def get_member_database():
+    """Mengambil list nama, nickname, dan foto dari API Members JKT48."""
+    url = "https://jkt48.com/api/v1/members?lang=id"
+    nickname_map = {}
+    photo_map = {}
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        if response.status_code == 200:
+            res_json = response.json()
+            if res_json.get("status") is True and "data" in res_json:
+                for member in res_json["data"]:
+                    name = member.get("name", "").lower()
+                    nickname = member.get("nickname", "").lower()
+                    photo = member.get("photo", "")
+                    
+                    if nickname and name:
+                        nickname_map[nickname] = name
+                    if name and photo:
+                        photo_map[name] = photo
+    except:
+        pass
+    return nickname_map, photo_map
 
 @st.cache_data(ttl=300)
 def get_active_exclusive_codes():
@@ -132,7 +157,7 @@ def fetch_exclusive_detail(code):
         pass
     return None
 
-def render_event_cards(event_data, search_query, available_only=False):
+def render_event_cards(event_data, search_query, nickname_map, photo_map, available_only=False):
     event_id = event_data.get('code', '')
     category = event_data.get('category', 'GENERAL')
     purchase_link = f"https://jkt48.com/purchase/exclusive?code={event_id}"
@@ -144,10 +169,8 @@ def render_event_cards(event_data, search_query, available_only=False):
         st.info("Sesi belum tersedia untuk event ini.")
         return
 
-    # --- AMBIL WAKTU SEKARANG (WIB) ---
     now_wib = datetime.utcnow() + timedelta(hours=7)
 
-    # --- CARI DEADLINE PENJUALAN UMUM (END DATE EVENT) ---
     general_end_wib = None
     for period in event_data.get('sales_period', []):
         if not period.get('is_ofc_only', False) or period.get('label') == 'General':
@@ -159,11 +182,11 @@ def render_event_cards(event_data, search_query, available_only=False):
                 except:
                     pass
 
-    # --- SIFAT PRE-FILTERING SEBELUM MEMBENTUK GROUPING TANGGAL ---
+    # --- TRANSLASI QUERY NICKNAME DINAMIS ---
+    mapped_query = nickname_map.get(search_query, search_query) if search_query else ""
+
     sessions_by_date = {}
-    
     for sesi in sessions:
-        # 1. Evaluasi Batas Waktu (Deadline) Sesi Ini
         is_before_deadline = True
         raw_date = sesi.get('date', '')
         session_date_wib = None
@@ -175,11 +198,9 @@ def render_event_cards(event_data, search_query, available_only=False):
                 pass
 
         if category == "DIGITAL_PHOTOBOOK" and session_date_wib:
-            # Aturan Video Call: Maksimal jam 07:00 PAGI WIB di hari H
             vc_deadline = datetime.combine(session_date_wib.date(), datetime.strptime("07:00:00", "%H:%M:%S").time())
             is_before_deadline = now_wib < vc_deadline
         else:
-            # Aturan Event Biasa
             if general_end_wib:
                 is_before_deadline = now_wib < general_end_wib
             if session_date_wib and sesi.get('end_time'):
@@ -191,23 +212,20 @@ def render_event_cards(event_data, search_query, available_only=False):
                 except:
                     pass
 
-        # 2. Ambil dan Filter Member di Dalam Sesi Ini
         members = sesi.get('session_detail', [])
         
-        if search_query:
-            members = [m for m in members if search_query in m.get('jkt48_member_name', '').lower()]
+        # GUNAKAN MAPPED QUERY UNTUK FILTER
+        if mapped_query:
+            members = [m for m in members if mapped_query in m.get('jkt48_member_name', '').lower()]
             
         if available_only:
-            # Jika opsi Hanya Available aktif, sesi harus belom deadline DAN wajib ada sisa kuota
             if not is_before_deadline:
                 continue
             members = [m for m in members if m.get('available_quota', 0) > 0]
 
-        # CRITICAL FIX: Jika sesi ini tidak menyisakan member lolos saring, buang seluruh sesi
         if not members:
             continue
 
-        # 3. Kelompokkan Sesi yang Lolos ke Dalam Tanggal
         date_str = "Lainnya"
         if session_date_wib:
             date_str = session_date_wib.strftime('%d/%m/%Y')
@@ -217,26 +235,21 @@ def render_event_cards(event_data, search_query, available_only=False):
         if date_str not in sessions_by_date:
             sessions_by_date[date_str] = []
             
-        # Simpan data yang sudah bersih ke dalam kluster tanggal
         sesi_clean = sesi.copy()
         sesi_clean['filtered_members'] = members
         sesi_clean['is_before_deadline'] = is_before_deadline
         sesi_clean['session_date_wib'] = session_date_wib
         sessions_by_date[date_str].append(sesi_clean)
 
-    # Mengambil list tanggal aktual yang benar-benar berisi data lolos filter
     unique_dates = list(sessions_by_date.keys())
 
-    # --- 4. LOGIKA NAVIGASI INTERFACE ---
     if search_query:
-        # Mode Cari Nama: Bongkar semua kluster tanggal, jejerkan langsung ke bawah
         active_sessions = []
         for d_sessions in sessions_by_date.values():
             active_sessions.extend(d_sessions)
         if active_sessions:
-            st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query}'** lintas tanggal.")
+            st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query.title()}'** lintas tanggal.")
     else:
-        # Mode Monitor Normal: Tampilkan pilihan tanggal (Hanya tanggal yang ada isinya)
         if len(unique_dates) > 1:
             selected_date = st.radio("📅 Pilih Tanggal Pelaksanaan Event:", unique_dates, horizontal=True, key=f"filter_date_{event_id}")
             st.write("")
@@ -251,7 +264,6 @@ def render_event_cards(event_data, search_query, available_only=False):
             st.warning("🟢 Bersih! Tidak ada tiket atau sesi available yang aktif saat ini.")
         return
 
-    # --- 5. RENDER UTAMA GRID KARTU ---
     for sesi in active_sessions:
         members = sesi['filtered_members']
         is_before_deadline = sesi['is_before_deadline']
@@ -271,6 +283,11 @@ def render_event_cards(event_data, search_query, available_only=False):
             tickets_sold = m.get('tickets_sold', 0)
             jalur_label = m.get("label", "-")
             
+            # --- RENDER KABESHA (FOTO MEMBER) ---
+            # Jika foto tidak ditemukan, pakai gambar default transparan
+            photo_url = photo_map.get(member_name.lower(), "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+            img_html = f'<img src="{photo_url}" class="c-photo" alt="{member_name}">'
+            
             sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
             
             if current_quota <= 0 or not is_before_deadline: 
@@ -278,6 +295,7 @@ def render_event_cards(event_data, search_query, available_only=False):
                 html += (
                     f'<div class="ldp-card {cls}">'
                     f'<div class="c-jalur">{jalur_label}</div>'
+                    f'{img_html}'
                     f'<div class="c-member">{member_name}</div>'
                     f'{sold_text}'
                     f'<div class="c-badge">{lbl}</div>'
@@ -292,6 +310,7 @@ def render_event_cards(event_data, search_query, available_only=False):
                 html += (
                     f'<div class="ldp-card {cls}">'
                     f'<div class="c-jalur">{jalur_label}</div>'
+                    f'{img_html}'
                     f'<div class="c-member">{member_name}</div>'
                     f'{sold_text}'
                     f'<a href="{purchase_link}" target="_blank" class="badge-link">'
@@ -305,13 +324,15 @@ def render_event_cards(event_data, search_query, available_only=False):
 
 st.info("💡 **Petunjuk:** Pilih event dari dropdown, filter tanggal hari jika ada, lalu pantau sisa kuota member.")
 
+# Init Database Member secara Global
+nickname_map, photo_map = get_member_database()
+
 active_codes = get_active_exclusive_codes()
 if not active_codes:
     active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
 
 active_events = []
 
-# --- MULTITHREADING FETCHING ---
 with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
     results = executor.map(fetch_exclusive_detail, active_codes)
     for data in results:
@@ -321,7 +342,6 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
 active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
 if active_events:
-    # --- RENDER KOTAK KONTROL UTAMA ---
     with st.container(border=True):
         col1, col2, col3 = st.columns([2.5, 1.5, 1])
         with col1:
@@ -349,19 +369,17 @@ if active_events:
             selected_event_label = st.selectbox("📌 Pilih Event Exclusive (Urutan Terbaru):", list(event_options.keys()))
             
         with col2:
-            global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama oshimu (misal: Michie, Gracie, Fritzy)...").lower().strip()
+            global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama oshimu...").lower().strip()
             
         with col3:
-            st.write("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True) # Penyelaras baris vertical
-            available_only = st.toggle("🟢 Hanya Available", value=False, help="Sembunyikan tiket yang sudah habis terjual atau yang sudah melewati batas waktu (deadline) pembelian teater.")
+            st.write("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True) 
+            available_only = st.toggle("🟢 Hanya Available", value=False, help="Sembunyikan tiket yang sudah habis terjual atau yang sudah melewati batas waktu (deadline).")
             
     selected_event = event_options[selected_event_label]
     
-    # Judul & Meta Informasi
     st.markdown(f"### {selected_event.get('title', 'Event')}")
     st.caption(f"**Kategori:** {selected_event.get('category', '-').replace('_', ' ')} | **Harga:** Rp {selected_event.get('default_price', 0):,}")
     
-    # --- INSIGHT METRICS KALKULASI ---
     total_sold = 0
     total_capacity = 0
     for sesi in selected_event.get('session', []):
@@ -374,7 +392,6 @@ if active_events:
     sisa_kuota = total_capacity - total_sold
     sold_rate = (total_sold / total_capacity * 100) if total_capacity > 0 else 0.0
     
-    # Render Expander Insight (3 Kolom Ringkas)
     with st.expander("📊 Lihat Analitik & Data Insight Penjualan (Sales Overview)", expanded=False):
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1:
@@ -384,7 +401,7 @@ if active_events:
         with col_m3:
             st.metric(label="🔥 Sold Rate (Kelarisan)", value=f"{sold_rate:.1f}%")
         
-    # Render Utama Grid Kartu Member
-    render_event_cards(selected_event, global_query, available_only)
+    # Mengirim parameter kamus nickname dan peta foto ke dalam fungsi render
+    render_event_cards(selected_event, global_query, nickname_map, photo_map, available_only)
 else:
     st.error("Tidak ada event Exclusive yang aktif atau sistem gagal menarik data.")
