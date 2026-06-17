@@ -13,7 +13,7 @@ st_autorefresh(interval=5000, key="global_exclusive_refresh")
 # --- 3. PREMIUM UI STYLING ---
 css = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;700;800&display=swap');
 html, body, .stApp { font-family: 'Inter', sans-serif; }
 .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1400px; }
 
@@ -131,7 +131,7 @@ def fetch_exclusive_detail(code):
         pass
     return None
 
-def render_event_cards(event_data, search_query):
+def render_event_cards(event_data, search_query, available_only=False):
     event_id = event_data.get('code', '')
     category = event_data.get('category', 'GENERAL')
     purchase_link = f"https://jkt48.com/purchase/exclusive?code={event_id}"
@@ -143,77 +143,112 @@ def render_event_cards(event_data, search_query):
         st.info("Sesi belum tersedia untuk event ini.")
         return
 
-    # --- MODIFIKASI: GLOBAL SEARCH OVERRIDE ---
-    if search_query:
-        # Jika ada pencarian, bypass filter tanggal dan gunakan semua sesi
-        active_sessions = sessions
-        st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query}'** lintas tanggal.")
-    else:
-        # Jika kotak pencarian kosong, jalankan sistem grouping tanggal seperti biasa
-        sessions_by_date = {}
-        for sesi in sessions:
-            raw_date = sesi.get('date', '')
-            date_str = "Lainnya"
-            if raw_date:
+    # --- AMBIL WAKTU SEKARANG (WIB) ---
+    now_wib = datetime.utcnow() + timedelta(hours=7)
+
+    # --- CARI DEADLINE PENJUALAN UMUM (END DATE EVENT) ---
+    general_end_wib = None
+    for period in event_data.get('sales_period', []):
+        if not period.get('is_ofc_only', False) or period.get('label') == 'General':
+            ed = period.get('end_date')
+            if ed:
                 try:
-                    clean_date = raw_date.split('.')[0].replace('Z', '')
-                    dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
-                    dt_wib = dt_utc + timedelta(hours=7)
-                    date_str = dt_wib.strftime('%d/%m/%Y')
+                    clean_ed = ed.split('.')[0].replace('Z', '')
+                    general_end_wib = datetime.strptime(clean_ed, "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
                 except:
-                    date_str = raw_date[:10]
-            
-            if date_str not in sessions_by_date:
-                sessions_by_date[date_str] = []
-            sessions_by_date[date_str].append(sesi)
-            
-        unique_dates = list(sessions_by_date.keys())
-        
-        if len(unique_dates) > 1:
-            selected_date = st.radio(
-                "📅 Pilih Tanggal Pelaksanaan Event:", 
-                unique_dates, 
-                horizontal=True, 
-                key=f"filter_date_{event_id}"
-            )
-            st.write("")
-        else:
-            selected_date = unique_dates[0] if unique_dates else None
+                    pass
 
-        active_sessions = sessions_by_date.get(selected_date, []) if selected_date else sessions
-
-    # --- RENDER KARTU MEMBER ---
-    has_data = False
-    for sesi in active_sessions:
-        members = sesi.get('session_detail', [])
-        
-        if search_query:
-            members = [m for m in members if search_query in m.get('jkt48_member_name', '').lower()]
-            
-        if not members:
-            continue
-            
-        has_data = True
-        
-        # Ekstraksi Label Bersih (Menghilangkan nama tim)
-        raw_label = sesi.get('label', 'Sesi')
-        sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
-        
-        time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
-        
-        # Ekstraksi Tanggal WIB untuk di header sesi
+    # --- SEPARASI TANGGAL ---
+    sessions_by_date = {}
+    for sesi in sessions:
         raw_date = sesi.get('date', '')
-        date_info = ""
+        date_str = "Lainnya"
         if raw_date:
             try:
                 clean_date = raw_date.split('.')[0].replace('Z', '')
                 dt_utc = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
                 dt_wib = dt_utc + timedelta(hours=7)
-                date_info = f" ({dt_wib.strftime('%d/%m/%Y')})"
+                date_str = dt_wib.strftime('%d/%m/%Y')
             except:
-                date_info = f" ({raw_date[:10]})"
+                date_str = raw_date[:10]
         
-        st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}{date_info}</small>", unsafe_allow_html=True)
+        if date_str not in sessions_by_date:
+            sessions_by_date[date_str] = []
+        sessions_by_date[date_str].append(sesi)
+        
+    unique_dates = list(sessions_by_date.keys())
+    
+    # Mode normal: pilah per tanggal. Mode search: bypass tanggal
+    if search_query:
+        active_sessions = sessions
+        st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query}'** lintas tanggal.")
+    else:
+        if len(unique_dates) > 1:
+            selected_date = st.radio("📅 Pilih Tanggal Pelaksanaan Event:", unique_dates, horizontal=True, key=f"filter_date_{event_id}")
+            st.write("")
+        else:
+            selected_date = unique_dates[0] if unique_dates else None
+        active_sessions = sessions_by_date.get(selected_date, []) if selected_date else sessions
+
+    # --- RUN LOGIKA ITERASI SESI ---
+    for sesi in active_sessions:
+        # Evaluasi batas waktu (deadline) sesi ini secara dinamis
+        is_before_deadline = True
+        
+        raw_date = sesi.get('date', '')
+        session_date_wib = None
+        if raw_date:
+            try:
+                clean_date = raw_date.split('.')[0].replace('Z', '')
+                session_date_wib = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+            except:
+                pass
+
+        # Aturan Deadline Berdasarkan Kategori
+        if category == "DIGITAL_PHOTOBOOK" and session_date_wib:
+            # Aturan VC: Jam 7 pagi WIB di Hari H Pelaksanaan Sesi
+            vc_deadline = datetime.combine(session_date_wib.date(), datetime.strptime("07:00:00", "%H:%M:%S").time())
+            is_before_deadline = now_wib < vc_deadline
+        else:
+            # Aturan Biasa (2-Shot / PC): Cek General End Date Event
+            if general_end_wib:
+                is_before_deadline = now_wib < general_end_wib
+            
+            # Pengaman: Jika jam sesi berakhir sudah lewat di hari H teater, otomatis ditutup
+            if session_date_wib and sesi.get('end_time'):
+                try:
+                    t_end = datetime.strptime(sesi.get('end_time'), "%H:%M:%S").time()
+                    session_end_datetime = datetime.combine(session_date_wib.date(), t_end)
+                    if now_wib > session_end_datetime:
+                        is_before_deadline = False
+                except:
+                    pass
+
+        members = sesi.get('session_detail', [])
+        
+        # Jalankan Filter Nama (Search)
+        if search_query:
+            members = [m for m in members if search_query in m.get('jkt48_member_name', '').lower()]
+            
+        # Jalankan Filter Ketersediaan Aktual (Toggle Available Only)
+        if available_only:
+            if not is_before_deadline:
+                continue  # Sembunyikan seluruh sesi jika sudah lewat deadline
+            else:
+                members = [m for m in members if m.get('available_quota', 0) > 0]
+                
+        if not members:
+            continue
+            
+        # Ekstraksi Label Sesi Bersih
+        raw_label = sesi.get('label', 'Sesi')
+        sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
+        time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
+        
+        # Tampilkan tanggal di header sesi jika dalam mode global search
+        date_header = f" ({session_date_wib.strftime('%d/%m/%Y')})" if search_query and session_date_wib else ""
+        
+        st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}{date_header}</small>", unsafe_allow_html=True)
         
         html = '<div class="cards-grid">'
         for m in members:
@@ -224,8 +259,9 @@ def render_event_cards(event_data, search_query):
             
             sold_text = f"<div class='c-sold'>Terjual: {tickets_sold}</div>"
             
-            if current_quota <= 0: 
-                cls, lbl = "sold", "HABIS"
+            # Logika pewarnaan card (Mendukung status CLOSED jika lewat jam deadline)
+            if current_quota <= 0 or not is_before_deadline: 
+                cls, lbl = "sold", "CLOSED" if not is_before_deadline else "HABIS"
                 html += f'<div class="ldp-card {cls}"><div class="c-jalur">{jalur_label}</div><div class="c-member">{member_name}</div>{sold_text}<div class="c-badge">{lbl}</div></div>'
             else: 
                 if current_quota < warn_limit: 
@@ -233,97 +269,4 @@ def render_event_cards(event_data, search_query):
                 else: 
                     cls, lbl = "avail", f"SISA {current_quota}"
                 
-                html += f'<div class="ldp-card {cls}"><div class="c-jalur">{jalur_label}</div><div class="c-member">{member_name}</div>{sold_text}<a href="{purchase_link}" target="_blank" class="badge-link"><div class="c-badge">{lbl}</div></a></div>'
-        
-        st.markdown(html + '</div>', unsafe_allow_html=True)
-        
-    if not has_data and search_query:
-        st.warning(f"Member '{search_query.title()}' tidak ditemukan pada event ini.")
-
-
-# --- 6. MAIN LAYOUT & DISCOVERY ---
-
-st.info("💡 **Petunjuk:** Pilih event dari dropdown, filter tanggal hari jika ada, lalu pantau sisa kuota member.")
-
-active_codes = get_active_exclusive_codes()
-
-if not active_codes:
-    active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
-
-active_events = []
-for code in active_codes:
-    data = fetch_exclusive_detail(code)
-    if data and data.get('status') is not False: 
-        active_events.append(data)
-
-active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
-
-if active_events:
-    
-    event_options = {}
-    for ev in active_events:
-        cat = ev.get('category', '')
-        icon = "📸" if cat == "TWO_SHOT" else "🤝" if cat == "PHOTOCARD" else "📱" if cat == "DIGITAL_PHOTOBOOK" else "🎟️"
-        title = ev.get('title', 'Unknown Event')
-        
-        raw_open_date = ev.get('valid_date_from', '')
-        open_date_str = ""
-        if raw_open_date:
-            try:
-                dt_utc = datetime.strptime(raw_open_date.split('.')[0].replace('Z', ''), "%Y-%m-%dT%H:%M:%S")
-                dt_wib = dt_utc + timedelta(hours=7)
-                open_date_str = f"[{dt_wib.strftime('%d/%m/%Y')}] "
-            except:
-                pass
-        
-        dropdown_label = f"{icon} {open_date_str}{title}"
-        if dropdown_label in event_options:
-            dropdown_label += f" ({ev.get('code', '')})"
-            
-        event_options[dropdown_label] = ev
-    
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        selected_event_label = st.selectbox("📌 Pilih Event Exclusive (Urutan Terbaru):", list(event_options.keys()))
-    with col2:
-        global_query = st.text_input("🔍 Cari Member...", placeholder="Ketik nama member...").lower().strip()
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    selected_event = event_options[selected_event_label]
-    
-    # Render Judul & Meta Informasi Dasar
-    st.markdown(f"### {selected_event.get('title', 'Event')}")
-    st.caption(f"**Kategori:** {selected_event.get('category', '-').replace('_', ' ')} | **Harga:** Rp {selected_event.get('default_price', 0):,}")
-    
-    # --- INSIGHT METRICS KALKULASI ---
-    total_sold = 0
-    total_capacity = 0
-    
-    for sesi in selected_event.get('session', []):
-        for m in sesi.get('session_detail', []):
-            sold = m.get('tickets_sold', 0)
-            avail = m.get('available_quota', 0)
-            total_sold += sold
-            total_capacity += (sold + avail)
-            
-    sisa_kuota = total_capacity - total_sold
-    sold_rate = (total_sold / total_capacity * 100) if total_capacity > 0 else 0.0
-    
-    # --- IMPLEMENTASI POPUP/EXPANDER (INSIGHT TERSEMBUNYI) ---
-    # expanded=False memastikan panel ini tertutup rapi saat pertama kali dimuat
-    with st.expander("📊 Lihat Analitik & Data Insight Penjualan (Sales Overview)", expanded=False):
-        # Ubah menjadi 3 kolom saja
-        col_m1, col_m2, col_m3 = st.columns(3)
-        
-        with col_m1:
-            st.metric(label="🎟️ Tiket Terjual", value=f"{total_sold:,}")
-        with col_m2:
-            st.metric(label="📦 Sisa Kuota", value=f"{sisa_kuota:,}")
-        with col_m3:
-            st.metric(label="🔥 Sold Rate (Kelarisan)", value=f"{sold_rate:.1f}%")
-        
-    # Render Grid Member langsung terlihat tanpa terhalang metrik
-    render_event_cards(selected_event, global_query)
-else:
-    st.error("Tidak ada event Exclusive yang aktif atau sistem gagal menarik data.")
+                html += f'<div class="ldp-card {cls}"><div class="c-jalur">{jalur_label}</div><div class
