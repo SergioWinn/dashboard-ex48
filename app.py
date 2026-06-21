@@ -454,6 +454,10 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
 def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, available_only):
     fresh_event_data = fetch_exclusive_detail(event_code)
     
+    # --- INDIKATOR LAST UPDATED ---
+    current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S')
+    st.caption(f"🔄 **Data Live - Terakhir Diperbarui:** {current_time_wib} WIB")
+    
     if not fresh_event_data:
         st.warning("⏳ Menunggu pembaruan sinkronisasi data...")
         return
