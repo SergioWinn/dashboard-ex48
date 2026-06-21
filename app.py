@@ -3,6 +3,7 @@ import requests
 import re
 import concurrent.futures
 from datetime import datetime, timedelta
+import streamlit.components.v1 as components
 
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon="🔴")
@@ -143,6 +144,31 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     color: #fff; 
     letter-spacing: 0.5px; 
     text-shadow: 0 1px 3px rgba(0,0,0,0.8); 
+}
+
+/* --- SHAREABLE BANNER --- */
+.share-banner {
+    background: linear-gradient(135deg, #10B981 0%, #047857 100%);
+    border-radius: 12px;
+    padding: 12px 15px; /* Padding dikecilkan */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+    box-shadow: 0 4px 15px rgba(16,185,129,0.2);
+    margin-bottom: 15px;
+}
+/* Font dikecilkan & word-spacing ditambah agar spasi tidak hilang saat di-SS */
+.sb-left h3 { margin: 0 0 4px 0; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; word-spacing: 2px; }
+.sb-left p { margin: 0; font-size: 11px; opacity: 0.9; font-weight: 600; word-spacing: 1px; }
+.sb-right { text-align: right; }
+.sb-right .sb-time { font-size: 11px; font-weight: 700; background: rgba(0,0,0,0.25); padding: 4px 10px; border-radius: 20px; display: inline-block; border: 1px solid rgba(255,255,255,0.2); }
+.sb-right .sb-wm { font-size: 9px; margin-top: 5px; opacity: 0.8; font-weight: 700; letter-spacing: 0.5px; }
+
+@media (max-width: 500px) {
+    .share-banner { flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px; }
+    .sb-right { text-align: left; width: 100%; display: flex; justify-content: space-between; align-items: center; }
+    .sb-right .sb-wm { margin-top: 0; }
 }
 
 /* Mobile optimization */
@@ -353,12 +379,38 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             st.warning("🟢 Bersih! Tidak ada tiket atau sesi available yang aktif saat ini.")
         return
 
-    # === SOLUSI GRID DESKTOP ===
+    # === SOLUSI GLOBAL SCREENSHOT (Pencarian & Per Hari) ===
     is_search_mode = bool(search_query)
     
+    waktu_sekarang = (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m/%Y %H:%M WIB')
+    judul_event = event_data.get('title', 'JKT48 Exclusive Event')
+    
+    # Penentuan Judul Banner Otomatis
     if is_search_mode:
-        # Buka SATU grid raksasa agar kartu berjajar menyamping di Desktop
-        search_html_buffer = '<div class="cards-grid">'
+        report_title = f"🔍 LAPORAN PENCARIAN: {search_query.upper()}"
+        file_name = f"Kuota_Search_{search_query.replace(' ', '_')}"
+    else:
+        report_title = f"📅 LAPORAN TANGGAL: {selected_date}"
+        file_name = f"Kuota_Tanggal_{selected_date.replace('/', '').replace(' ', '_')}"
+
+    banner_html = f"""
+    <div id="share-banner" class="share-banner" style="display: none;">
+        <div class="sb-left">
+            <h3>{report_title}</h3>
+            <p>{judul_event}</p>
+        </div>
+        <div class="sb-right">
+            <div class="sb-time">⏱️ {waktu_sekarang}</div>
+            <div class="sb-wm">LIVE TRACKER BY @ESTRELLAWIN19</div>
+        </div>
+    </div>
+    """
+    
+    # Buka kontainer utama untuk target screenshot
+    master_html_buffer = f'<div id="laporan-container" style="transition: 0.2s;">{banner_html}'
+    
+    if is_search_mode:
+        master_html_buffer += '<div class="cards-grid">'
 
     for sesi in active_sessions:
         members = sesi['filtered_members']
@@ -369,12 +421,10 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
         
-        # Kalau TAMPILAN NORMAL (Tidak di-search), render judul Sesi dan buka grid baru
+        # Kalau TAMPILAN NORMAL (Tidak di-search), render judul Sesi langsung pakai HTML
         if not is_search_mode:
-            st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}</small>", unsafe_allow_html=True)
-            html = '<div class="cards-grid">'
-        else:
-            html = '' # Kosongkan karena kita pakai buffer raksasa
+            master_html_buffer += f"<h4 style='color: white; margin-top: 5px; margin-bottom: 15px; font-family: Inter, sans-serif; font-size: 16px;'>{sesi_label} <span style='opacity:0.5; font-size: 13px; font-weight: 500;'>{time_info}</span></h4>"
+            master_html_buffer += '<div class="cards-grid">'
             
         for m in members:
             member_name = m.get('jkt48_member_name', 'Unknown')
@@ -382,20 +432,15 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             tickets_sold = m.get('tickets_sold', 0)
             jalur_label = m.get("label", "-")
             
-            # Khusus Search: Ganti "Jalur X" menjadi informatif lengkap dengan jam
             if is_search_mode:
                 date_short = session_date_wib.strftime('%d/%m') if session_date_wib else ""
                 sesi_short = sesi_label.replace("Sesi", "S.")
-                
-                # Mengambil rentang waktu (misal: 13:00-14:00)
                 time_range = f"{sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
                 time_str = f" ({time_range})" if time_range else ""
-                
-                # Menggabungkan semuanya -> "23/06 • S.1 (13:00-14:00) • Jalur 3"
                 jalur_label = f"{date_short} • {sesi_short}{time_str} • {jalur_label}"
                 
-            safe_name = member_name.strip().lower()
-            raw_photo_url = photo_map.get(safe_name, "")
+            safe_name_img = member_name.strip().lower()
+            raw_photo_url = photo_map.get(safe_name_img, "")
             
             if raw_photo_url:
                 proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=100&output=webp"
@@ -404,7 +449,6 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 
             img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" title="{member_name}"></div>'
             
-            # --- SMART PROGRESS BUTTON LOGIC ---
             total_slot_capacity = tickets_sold + current_quota
             sold_percentage = (tickets_sold / total_slot_capacity * 100) if total_slot_capacity > 0 else 0
             
@@ -456,16 +500,102 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                     f'</div>'
                 )
             
-            html += card_html
+            master_html_buffer += card_html
 
         if not is_search_mode:
-            st.markdown(html + '</div>', unsafe_allow_html=True)
-        else:
-            search_html_buffer += html
+            master_html_buffer += '</div>'
             
     if is_search_mode:
-        # Tutup grid raksasa di akhir perulangan sesi
-        st.markdown(search_html_buffer + '</div>', unsafe_allow_html=True)
+        master_html_buffer += '</div>'
+
+    master_html_buffer += '</div>'
+
+    # Render Seluruh DOM Sekaligus
+    st.markdown(master_html_buffer, unsafe_allow_html=True)
+    
+    # --- SISTEM KEAMANAN (HIDDEN BACKDOOR) ---
+    # Hanya render tombol jika URL mengandung parameter ?akses=admin_serr
+    if st.query_params.get("akses") == "admin_serr":
+        
+        # --- TOMBOL AUTODOWNLOAD JS (Floating Action Button Pojok Kanan Bawah) ---
+        safe_name = file_name.replace('(', '').replace(')', '')
+        components.html(f"""
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        <style>
+            body {{ margin: 0; padding: 0; background: transparent; display: flex; justify-content: center; align-items: center; overflow: hidden; }}
+            
+            .btn-dl {{
+                background: #10B981; color: white; border: none; 
+                width: 55px; height: 55px; border-radius: 50%; 
+                font-size: 24px; cursor: pointer; 
+                display: flex; justify-content: center; align-items: center;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+                transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+                outline: none;
+            }}
+            .btn-dl:hover {{ 
+                background: #0D9488; 
+                box-shadow: 0 0 10px rgba(16, 185, 129, 0.5), 
+                            0 0 20px rgba(16, 185, 129, 0.3), 
+                            0 0 40px rgba(16, 185, 129, 0.1); 
+            }}
+        </style>
+        
+        <button class="btn-dl" id="dl-btn" title="Download Infografis">📸</button>
+        
+        <script>
+            try {{
+                const iframe = window.frameElement;
+                if (iframe) {{
+                    iframe.style.position = 'fixed';
+                    iframe.style.bottom = '30px';
+                    iframe.style.right = '30px';
+                    iframe.style.width = '70px';
+                    iframe.style.height = '70px';
+                    iframe.style.zIndex = '999999';
+                    iframe.style.border = 'none';
+                }}
+            }} catch(e) {{
+                document.body.style.justifyContent = 'flex-end';
+            }}
+
+            document.getElementById("dl-btn").addEventListener("click", function() {{
+                const target = window.parent.document.getElementById("laporan-container");
+                const banner = window.parent.document.getElementById("share-banner");
+                const btn = this;
+                
+                if(target) {{
+                    btn.innerText = "⏳";
+                    btn.style.background = "#FBBF24";
+                    
+                    if(banner) banner.style.display = "flex";
+                    target.style.padding = "20px";
+                    target.style.backgroundColor = "#0E1117";
+                    target.style.borderRadius = "15px";
+                    
+                    setTimeout(() => {{
+                        window.html2canvas(target, {{
+                            useCORS: true,
+                            backgroundColor: "#0E1117",
+                            scale: 2
+                        }}).then(canvas => {{
+                            if(banner) banner.style.display = "none";
+                            target.style.padding = "0px";
+                            target.style.backgroundColor = "transparent";
+                            
+                            let link = document.createElement("a");
+                            link.download = "{safe_name}.png";
+                            link.href = canvas.toDataURL("image/png");
+                            link.click();
+                            
+                            btn.innerText = "📸";
+                            btn.style.background = "#10B981";
+                        }});
+                    }}, 150);
+                }}
+            }});
+        </script>
+        """, height=70)
 
 
 # --- 4. STREAMLIT FRAGMENT: ISOLASI AUTO-REFRESH ---
