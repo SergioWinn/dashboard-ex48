@@ -522,9 +522,11 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     # Render Seluruh DOM Sekaligus
     st.markdown(master_html_buffer, unsafe_allow_html=True)
     
-    # --- SISTEM KEAMANAN (HIDDEN BACKDOOR) ---
-    # Hanya render tombol jika URL mengandung parameter ?akses=admin_serr
-    if st.query_params.get("akses") == "admin_serr":
+    # --- SISTEM KEAMANAN (STRICT BACKDOOR) ---
+    # Jika rahasia tidak ditemukan, kembalikan list kosong (tidak ada yang bisa akses)
+    KODE_ADMIN_LIST = st.secrets.get("ADMIN_KEYS", [])
+    
+    if st.query_params.get("akses") in KODE_ADMIN_LIST:
         
         # --- TOMBOL AUTODOWNLOAD JS (Floating Action Button Pojok Kanan Bawah) ---
         safe_name = file_name.replace('(', '').replace(')', '')
