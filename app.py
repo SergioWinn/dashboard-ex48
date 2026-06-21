@@ -363,11 +363,17 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             tickets_sold = m.get('tickets_sold', 0)
             jalur_label = m.get("label", "-")
             
-            # Khusus Search: Ganti "Jalur X" menjadi informatif -> "23/06 • Sesi 1 • Jalur X"
+            # Khusus Search: Ganti "Jalur X" menjadi informatif lengkap dengan jam
             if is_search_mode:
                 date_short = session_date_wib.strftime('%d/%m') if session_date_wib else ""
                 sesi_short = sesi_label.replace("Sesi", "S.")
-                jalur_label = f"{date_short} • {sesi_short} • {jalur_label}"
+                
+                # Mengambil rentang waktu (misal: 13:00-14:00)
+                time_range = f"{sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
+                time_str = f" ({time_range})" if time_range else ""
+                
+                # Menggabungkan semuanya -> "23/06 • S.1 (13:00-14:00) • Jalur 3"
+                jalur_label = f"{date_short} • {sesi_short}{time_str} • {jalur_label}"
                 
             safe_name = member_name.strip().lower()
             raw_photo_url = photo_map.get(safe_name, "")
