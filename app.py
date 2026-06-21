@@ -74,7 +74,20 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     background-color: #2a2a2a; 
 }
 
-.c-jalur { font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-jalur { 
+    font-size: 10px; 
+    opacity: 0.5; 
+    font-weight: 600; 
+    text-transform: uppercase; 
+    margin-bottom: 8px; 
+    letter-spacing: 0.5px; 
+    width: 100%; 
+    max-width: 100%; /* Memaksa teks agar tidak meluber */
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    display: block; /* Kunci agar ellipsis bekerja sempurna di dalam flex container */
+}
 .c-member { 
     font-weight: 700; font-size: 15px; line-height: 1.2; margin-bottom: 8px; 
     height: 2.4em; width: 100%;
@@ -139,6 +152,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     .c-member { font-size: 13px; }
     .ldp-title { font-size: 2rem; }
     .credit-container { flex-direction: column; gap: 10px; }
+    .c-jalur { font-size: 8.5px; letter-spacing: 0px; } /* Penyesuaian font jalur untuk HP */
 }
 </style>
 """
