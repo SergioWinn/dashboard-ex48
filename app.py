@@ -74,7 +74,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     background-color: #2a2a2a; 
 }
 
-.c-jalur { font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; width: 100%; }
+.c-jalur { font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .c-member { font-weight: 700; font-size: 15px; line-height: 1.2; margin-bottom: 8px; height: 2.4em; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 100%; }
 
 /* --- SMART PROGRESS BUTTON (UI Upgrade) --- */
@@ -334,6 +334,13 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             st.warning("🟢 Bersih! Tidak ada tiket atau sesi available yang aktif saat ini.")
         return
 
+    # === SOLUSI GRID DESKTOP ===
+    is_search_mode = bool(search_query)
+    
+    if is_search_mode:
+        # Buka SATU grid raksasa agar kartu berjajar menyamping di Desktop
+        search_html_buffer = '<div class="cards-grid">'
+
     for sesi in active_sessions:
         members = sesi['filtered_members']
         is_before_deadline = sesi['is_before_deadline']
@@ -342,17 +349,26 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         raw_label = sesi.get('label', 'Sesi')
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
-        date_header = f" ({session_date_wib.strftime('%d/%m/%Y')})" if search_query and session_date_wib else ""
         
-        st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}{date_header}</small>", unsafe_allow_html=True)
-        
-        html = '<div class="cards-grid">'
+        # Kalau TAMPILAN NORMAL (Tidak di-search), render judul Sesi dan buka grid baru
+        if not is_search_mode:
+            st.markdown(f"#### {sesi_label} <small style='opacity:0.5'>{time_info}</small>", unsafe_allow_html=True)
+            html = '<div class="cards-grid">'
+        else:
+            html = '' # Kosongkan karena kita pakai buffer raksasa
+            
         for m in members:
             member_name = m.get('jkt48_member_name', 'Unknown')
             current_quota = m.get('available_quota', 0)
             tickets_sold = m.get('tickets_sold', 0)
             jalur_label = m.get("label", "-")
             
+            # Khusus Search: Ganti "Jalur X" menjadi informatif -> "23/06 • Sesi 1 • Jalur X"
+            if is_search_mode:
+                date_short = session_date_wib.strftime('%d/%m') if session_date_wib else ""
+                sesi_short = sesi_label.replace("Sesi", "S.")
+                jalur_label = f"{date_short} • {sesi_short} • {jalur_label}"
+                
             safe_name = member_name.strip().lower()
             raw_photo_url = photo_map.get(safe_name, "")
             
@@ -367,10 +383,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             total_slot_capacity = tickets_sold + current_quota
             sold_percentage = (tickets_sold / total_slot_capacity * 100) if total_slot_capacity > 0 else 0
             
-            # Pemisahan status TUTUP (lewat waktu) dan HABIS (kuota 0)
             if not is_before_deadline:
                 cls, btn_text = "sold", "TUTUP"
-                # sold_percentage TIDAK kita paksa 100, biarkan menampilkan progres aktual saat ditutup
                 bar_color = "#EF4444"
             elif current_quota <= 0:
                 cls, btn_text = "sold", "HABIS"
@@ -383,7 +397,6 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 cls, btn_text = "avail", f"SISA {current_quota}"
                 bar_color = "#10B981"
                 
-            # Info Terjual di tengah
             combined_ui = f"""
             <div class="c-stats">
                 <span>Terjual: <b>{tickets_sold}</b></span>
@@ -394,10 +407,11 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             </div>
             """
             
+            card_html = ""
             if current_quota <= 0 or not is_before_deadline: 
-                html += (
+                card_html += (
                     f'<div class="ldp-card {cls}">'
-                    f'<div class="c-jalur">{jalur_label}</div>'
+                    f'<div class="c-jalur" title="{jalur_label}">{jalur_label}</div>'
                     f'{img_html}'
                     f'<div class="c-member">{member_name}</div>'
                     f'<div style="margin-top: auto; width: 100%;">'
@@ -406,9 +420,9 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                     f'</div>'
                 )
             else: 
-                html += (
+                card_html += (
                     f'<div class="ldp-card {cls}">'
-                    f'<div class="c-jalur">{jalur_label}</div>'
+                    f'<div class="c-jalur" title="{jalur_label}">{jalur_label}</div>'
                     f'{img_html}'
                     f'<div class="c-member">{member_name}</div>'
                     f'<a href="{purchase_link}" target="_blank" class="badge-link">'
@@ -416,7 +430,17 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                     f'</a>'
                     f'</div>'
                 )
-        st.markdown(html + '</div>', unsafe_allow_html=True)
+            
+            html += card_html
+
+        if not is_search_mode:
+            st.markdown(html + '</div>', unsafe_allow_html=True)
+        else:
+            search_html_buffer += html
+            
+    if is_search_mode:
+        # Tutup grid raksasa di akhir perulangan sesi
+        st.markdown(search_html_buffer + '</div>', unsafe_allow_html=True)
 
 
 # --- 4. STREAMLIT FRAGMENT: ISOLASI AUTO-REFRESH ---
