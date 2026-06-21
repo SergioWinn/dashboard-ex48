@@ -503,7 +503,7 @@ if not active_codes:
     active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
 
 active_events = []
-with st.spinner("⏳ Mengambil data jadwal JKT48 terbaru..."):
+with st.spinner("⏳ Mengambil data esklusif JKT48 terbaru..."):
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         results = executor.map(fetch_exclusive_detail, active_codes)
         for data in results:
