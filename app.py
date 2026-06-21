@@ -10,7 +10,7 @@ st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon
 # --- 2. PREMIUM UI STYLING ---
 css = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght=400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 html, body, .stApp { font-family: 'Inter', sans-serif; }
 .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1400px; }
 
@@ -75,7 +75,12 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 }
 
 .c-jalur { font-size: 10px; opacity: 0.5; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.c-member { font-weight: 700; font-size: 15px; line-height: 1.2; margin-bottom: 8px; height: 2.4em; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 100%; }
+.c-member { 
+    font-weight: 700; font-size: 15px; line-height: 1.2; margin-bottom: 8px; 
+    height: 2.4em; width: 100%;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
+    overflow: hidden; text-overflow: ellipsis; 
+}
 
 /* --- SMART PROGRESS BUTTON (UI Upgrade) --- */
 .c-stats { 
