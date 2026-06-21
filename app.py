@@ -382,16 +382,25 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     # === SOLUSI GLOBAL SCREENSHOT (Pencarian & Per Hari) ===
     is_search_mode = bool(search_query)
     
-    waktu_sekarang = (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m/%Y %H:%M WIB')
-    judul_event = event_data.get('title', 'JKT48 Exclusive Event')
+    # Ambil waktu terkini untuk Banner dan Nama File (Waktu Klik/Save)
+    now_dt = datetime.utcnow() + timedelta(hours=7)
+    waktu_sekarang = now_dt.strftime('%d/%m/%Y %H:%M WIB')
+    waktu_save = now_dt.strftime('%d%m%Y_%H%M') # Format DDMMYYYY_HHMM untuk penanda waktu SAVE
     
-    # Penentuan Judul Banner Otomatis
+    judul_event = event_data.get('title', 'JKT48 Exclusive Event')
+    safe_event_code = event_id if event_id else "EVENT"
+    
+    # Penentuan Judul Banner Otomatis & Nama File (Code -> Tanggal/Subjek -> Tanggal Save)
     if is_search_mode:
         report_title = f"🔍 LAPORAN PENCARIAN: {search_query.upper()}"
-        file_name = f"Kuota_Search_{search_query.replace(' ', '_')}"
+        safe_query = search_query.strip().replace(' ', '').title()
+        # Untuk mode search (lintas tanggal), posisi tanggal pelaksanaan diisi nama Member yang dicari
+        file_name = f"Kuota_{safe_event_code}_{safe_query}_Save_{waktu_save}"
     else:
         report_title = f"📅 LAPORAN TANGGAL: {selected_date}"
-        file_name = f"Kuota_Tanggal_{selected_date.replace('/', '').replace(' ', '_')}"
+        # Ambil tanggal pelaksanaan event (misal dari "28/06/2026 (Besok)" diperkecil jadi "28062026")
+        safe_date = selected_date.split(' ')[0].replace('/', '') 
+        file_name = f"Kuota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
 
     banner_html = f"""
     <div id="share-banner" class="share-banner" style="display: none;">
