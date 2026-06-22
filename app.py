@@ -478,7 +478,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 time_range = f"{sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
                 time_str = f" ({time_range})" if time_range else ""
                 jalur_label = f"{date_short} • {sesi_short}{time_str} • {jalur_label}"
-                
+            
+            # --- FIX BUG HTML2CANVAS (SPASI HILANG) ---
+            # Paksa spasi menggunakan entitas HTML &nbsp; agar tidak digabung saat difoto
+            display_member = member_name.replace(' ', '&nbsp;')
+            display_jalur = jalur_label.replace(' ', '&nbsp;')
+            
             safe_name_img = member_name.strip().lower()
             raw_photo_url = photo_map.get(safe_name_img, "")
             
@@ -500,15 +505,17 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 sold_percentage = 100
                 bar_color = "#EF4444"
             elif current_quota < warn_limit:
-                cls, btn_text = "warn", f"SISA {current_quota}"
+                # Suntikkan &nbsp; pada teks SISA
+                cls, btn_text = "warn", f"SISA&nbsp;{current_quota}"
                 bar_color = "#FBBF24"
             else:
-                cls, btn_text = "avail", f"SISA {current_quota}"
+                # Suntikkan &nbsp; pada teks SISA
+                cls, btn_text = "avail", f"SISA&nbsp;{current_quota}"
                 bar_color = "#10B981"
                 
             combined_ui = f"""
             <div class="c-stats">
-                <span>Terjual: <b>{tickets_sold}</b></span>
+                <span>Terjual:&nbsp;<b>{tickets_sold}</b></span>
             </div>
             <div class="c-prog-btn">
                 <div class="c-prog-fill" style="width: {sold_percentage}%; background-color: {bar_color};"></div>
@@ -520,9 +527,9 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             if current_quota <= 0 or not is_before_deadline: 
                 card_html += (
                     f'<div class="ldp-card {cls}">'
-                    f'<div class="c-jalur" title="{jalur_label}">{jalur_label}</div>'
+                    f'<div class="c-jalur" title="{jalur_label}">{display_jalur}</div>'
                     f'{img_html}'
-                    f'<div class="c-member">{member_name}</div>'
+                    f'<div class="c-member">{display_member}</div>'
                     f'<div style="margin-top: auto; width: 100%;">'
                     f'{combined_ui}'
                     f'</div>'
@@ -531,9 +538,9 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             else: 
                 card_html += (
                     f'<div class="ldp-card {cls}">'
-                    f'<div class="c-jalur" title="{jalur_label}">{jalur_label}</div>'
+                    f'<div class="c-jalur" title="{jalur_label}">{display_jalur}</div>'
                     f'{img_html}'
-                    f'<div class="c-member">{member_name}</div>'
+                    f'<div class="c-member">{display_member}</div>'
                     f'<a href="{purchase_link}" target="_blank" class="badge-link">'
                     f'{combined_ui}'
                     f'</a>'
