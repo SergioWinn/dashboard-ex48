@@ -66,15 +66,17 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     width: 74px; 
     height: 74px; 
     border-radius: 50%; 
-    background-size: cover; 
-    background-position: center 10%; 
+    /* 1. Zoom-in 125% agar wajah & pundak member pas memenuhi lingkaran */
+    background-size: 125%; 
+    /* 2. Turunkan sedikit posisinya agar kepala tidak terpotong saat di-zoom */
+    background-position: center 15%; 
     background-repeat: no-repeat;
     margin: 0 auto 12px auto; 
     border: 2px solid rgba(128, 128, 128, 0.2); 
     box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
-    background-color: rgba(128, 128, 128, 0.1); 
+    /* 3. Beri warna solid putih studio agar PNG transparan menjadi solid circle */
+    background-color: #ffffff; 
 }
-
 .c-jalur { 
     font-size: 10px; 
     opacity: 0.6; 
