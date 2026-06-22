@@ -100,26 +100,33 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .c-stats { 
     font-size: 11px; 
     color: inherit; 
-    opacity: 0.75; 
+    opacity: 0.9; /* NAIKKAN DARI 0.75 KE 0.9 AGAR LEBIH TEGAS DI LIGHT MODE */
     margin-bottom: 6px; 
     display: flex; 
     justify-content: center;
     width: 100%; 
     padding: 0 4px; 
 }
-.c-stats b { color: inherit; opacity: 1; margin-left: 3px; font-weight: 800; }
+.c-stats b { 
+    color: inherit; 
+    opacity: 1; 
+    margin-left: 3px; 
+    font-weight: 800; 
+}
 
 .c-prog-btn { 
     position: relative; 
     width: 100%; 
     height: 32px; 
-    background: rgba(128,128,128,0.2); 
+    /* Ubah background transparannya agar sedikit lebih gelap/kontras dari kartu */
+    background: rgba(128, 128, 128, 0.25); 
     border-radius: 8px; 
     overflow: hidden; 
     display: flex; 
     align-items: center; 
     justify-content: center; 
-    border: 1px solid rgba(128,128,128,0.3); 
+    /* Pertebal sedikit border-nya */
+    border: 1px solid rgba(128, 128, 128, 0.4); 
     transition: all 0.2s ease; 
 }
 .c-prog-btn:hover { border-color: rgba(255,255,255,0.3); transform: translateY(-1px); }
