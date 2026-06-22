@@ -537,66 +537,94 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     st.markdown(master_html_buffer, unsafe_allow_html=True)
     
     # --- SISTEM KEAMANAN (STRICT BACKDOOR) ---
-    # Jika rahasia tidak ditemukan, kembalikan list kosong (tidak ada yang bisa akses)
     KODE_ADMIN_LIST = st.secrets.get("ADMIN_KEYS", [])
     
     if st.query_params.get("akses") in KODE_ADMIN_LIST:
         
-        # --- TOMBOL AUTODOWNLOAD JS (Floating Action Button Pojok Kanan Bawah) ---
+        # --- TOMBOL INTEGRASI JS (Unduh & Salin Gambar) ---
         safe_name = file_name.replace('(', '').replace(')', '')
         components.html(f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <style>
-            body {{ margin: 0; padding: 0; background: transparent; display: flex; justify-content: center; align-items: center; overflow: hidden; }}
+            /* Mengatur tata letak dua tombol berdampingan */
+            body {{ 
+                margin: 0; padding: 0; background: transparent; 
+                display: flex; gap: 10px; justify-content: center; align-items: center; 
+                overflow: hidden; 
+            }}
             
-            .btn-dl {{
-                background: #10B981; color: white; border: none; 
-                width: 55px; height: 55px; border-radius: 50%; 
-                font-size: 24px; cursor: pointer; 
+            .btn-action {{
+                color: white; border: none; 
+                width: 50px; height: 50px; border-radius: 50%; 
+                font-size: 20px; cursor: pointer; 
                 display: flex; justify-content: center; align-items: center;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.5);
                 transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
                 outline: none;
             }}
-            .btn-dl:hover {{ 
+            
+            /* Tombol Download (Hijau) */
+            #dl-btn {{ background: #10B981; }}
+            #dl-btn:hover {{ 
                 background: #0D9488; 
-                box-shadow: 0 0 10px rgba(16, 185, 129, 0.5), 
-                            0 0 20px rgba(16, 185, 129, 0.3), 
-                            0 0 40px rgba(16, 185, 129, 0.1); 
+                box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); 
+            }}
+            
+            /* Tombol Copy (Biru/Ungu) */
+            #copy-btn {{ background: #3B82F6; }}
+            #copy-btn:hover {{ 
+                background: #1D4ED8; 
+                box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); 
             }}
         </style>
         
-        <button class="btn-dl" id="dl-btn" title="Download Infografis">📸</button>
+        <button class="btn-action" id="copy-btn" title="Salin Gambar ke Clipboard">📋</button>
+        <button class="btn-action" id="dl-btn" title="Download Gambar Infografis">📸</button>
         
         <script>
+            // Amankan konfigurasi posisi iframe melayang agar muat dua tombol
             try {{
                 const iframe = window.frameElement;
                 if (iframe) {{
                     iframe.style.position = 'fixed';
                     iframe.style.bottom = '30px';
                     iframe.style.right = '30px';
-                    iframe.style.width = '70px';
-                    iframe.style.height = '70px';
+                    iframe.style.width = '130px'; /* Diperlebar agar dua tombol muat */
+                    iframe.style.height = '65px';
                     iframe.style.zIndex = '999999';
                     iframe.style.border = 'none';
                 }}
-            }} catch(e) {{
-                document.body.style.justifyContent = 'flex-end';
-            }}
+            }} catch(e) {{}}
 
-            document.getElementById("dl-btn").addEventListener("click", function() {{
+            // Fungsi pembantu untuk memicu persiapan render banner & padding laporan
+            function siapkanTarget() {{
                 const target = window.parent.document.getElementById("laporan-container");
                 const banner = window.parent.document.getElementById("share-banner");
-                const btn = this;
-                
-                if(target) {{
-                    btn.innerText = "⏳";
-                    btn.style.background = "#FBBF24";
-                    
+                if (target) {{
                     if(banner) banner.style.display = "flex";
                     target.style.padding = "20px";
                     target.style.backgroundColor = "#0E1117";
                     target.style.borderRadius = "15px";
+                }}
+                return target;
+            }}
+
+            // Fungsi pembantu untuk mengembalikan tampilan dashboard seperti semula
+            function kembalikanTarget(target, banner) {{
+                if(banner) banner.style.display = "none";
+                target.style.padding = "0px";
+                target.style.backgroundColor = "transparent";
+            }}
+
+            // --- FUNGSI 1: DOWNLOAD GAMBAR ---
+            document.getElementById("dl-btn").addEventListener("click", function() {{
+                const btn = this;
+                const banner = window.parent.document.getElementById("share-banner");
+                const target = siapkanTarget();
+                
+                if(target) {{
+                    btn.innerText = "⏳";
+                    btn.style.background = "#FBBF24";
                     
                     setTimeout(() => {{
                         window.html2canvas(target, {{
@@ -604,9 +632,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                             backgroundColor: "#0E1117",
                             scale: 2
                         }}).then(canvas => {{
-                            if(banner) banner.style.display = "none";
-                            target.style.padding = "0px";
-                            target.style.backgroundColor = "transparent";
+                            kembalikanTarget(target, banner);
                             
                             let link = document.createElement("a");
                             link.download = "{safe_name}.png";
@@ -619,9 +645,63 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                     }}, 150);
                 }}
             }});
+
+            // --- FUNGSI 2: COPY GAMBAR KE CLIPBOARD ---
+            document.getElementById("copy-btn").addEventListener("click", function() {{
+                const btn = this;
+                const banner = window.parent.document.getElementById("share-banner");
+                const target = siapkanTarget();
+                
+                if(target) {{
+                    btn.innerText = "⏳";
+                    btn.style.background = "#FBBF24";
+                    
+                    setTimeout(() => {{
+                        window.html2canvas(target, {{
+                            useCORS: true,
+                            backgroundColor: "#0E1117",
+                            scale: 2
+                        }}).then(canvas => {{
+                            kembalikanTarget(target, banner);
+                            
+                            // Konversi canvas hasil render html2canvas menjadi Blob data PNG
+                            canvas.toBlob(function(blob) {{
+                                try {{
+                                    // Memanfaatkan Clipboard API untuk menyuntikkan file gambar ke memori
+                                    navigator.clipboard.write([
+                                        new ClipboardItem({{ "image/png": blob }})
+                                    ]).then(function() {{
+                                        btn.innerText = "✅";
+                                        btn.style.background = "#10B981"; // Hijau tanda sukses
+                                        
+                                        // Kembalikan ke ikon semula setelah 1.5 detik
+                                        setTimeout(() => {{
+                                            btn.innerText = "📋";
+                                            btn.style.background = "#3B82F6";
+                                        }}, 1500);
+                                    }}).catch(function(err) {{
+                                        btn.innerText = "❌";
+                                        btn.style.background = "#EF4444";
+                                        setTimeout(() => {{
+                                            btn.innerText = "📋";
+                                            btn.style.background = "#3B82F6";
+                                        }}, 1500);
+                                    }});
+                                }} catch (e) {{
+                                    btn.innerText = "❌";
+                                    btn.style.background = "#EF4444";
+                                    setTimeout(() => {{
+                                        btn.innerText = "📋";
+                                        btn.style.background = "#3B82F6";
+                                    }}, 1500);
+                                }}
+                            }}, "image/png");
+                        }});
+                    }}, 150);
+                }}
+            }});
         </script>
         """, height=70)
-
 
 # --- 4. STREAMLIT FRAGMENT: ISOLASI AUTO-REFRESH ---
 @st.fragment(run_every=5)
