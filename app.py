@@ -293,6 +293,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         is_before_deadline = True
         raw_date = sesi.get('date', '')
         session_date_wib = None
+        
+        # --- JANGAN DIHAPUS: Ini yang menerjemahkan tanggal dari API ---
         if raw_date:
             try:
                 clean_date = raw_date.split('.')[0].replace('Z', '')
@@ -300,23 +302,35 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             except:
                 pass
 
-        if category == "DIGITAL_PHOTOBOOK" and session_date_wib:
-            vc_deadline = datetime.combine(session_date_wib.date(), datetime.strptime("07:00:00", "%H:%M:%S").time())
-            is_before_deadline = now_wib < vc_deadline
-        else:
-            if general_end_wib:
-                is_before_deadline = now_wib < general_end_wib
-            if session_date_wib and sesi.get('end_time'):
-                try:
-                    t_end = datetime.strptime(sesi.get('end_time'), "%H:%M:%S").time()
-                    session_end_datetime = datetime.combine(session_date_wib.date(), t_end)
-                    if now_wib > session_end_datetime:
-                        is_before_deadline = False
-                except:
-                    pass
+        # --- LOGIKA PENUTUPAN DINAMIS PER HARI (MENGIKUTI JAM GLOBAL) ---
+        if session_date_wib and general_end_wib:
+            
+            # 1. Cek apakah sudah melewati batas global keseluruhan event
+            if now_wib > general_end_wib:
+                is_before_deadline = False
+            else:
+                # 2. Ambil komponen "Jam" dari batas penutupan global
+                jam_tutup_harian = general_end_wib.time()
+                
+                # 3. Tempelkan jam tersebut ke tanggal pelaksanaan (Hari H)
+                batas_penutupan_hari_h = datetime.combine(session_date_wib.date(), jam_tutup_harian)
+                
+                # 4. Cek apakah waktu saat ini sudah melewati batas tutup di Hari H tersebut
+                if now_wib > batas_penutupan_hari_h:
+                    is_before_deadline = False
+                    
+                # 5. Pastikan juga tidak melewati jam selesainya sesi itu sendiri
+                if is_before_deadline and sesi.get('end_time'):
+                    try:
+                        t_end = datetime.strptime(sesi.get('end_time'), "%H:%M:%S").time()
+                        session_end_datetime = datetime.combine(session_date_wib.date(), t_end)
+                        if now_wib > session_end_datetime:
+                            is_before_deadline = False
+                    except:
+                        pass
 
         members = sesi.get('session_detail', [])
-        
+                
         if search_query:
             members = [
                 m for m in members 
