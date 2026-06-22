@@ -57,7 +57,15 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 /* Border Status */
 .ldp-card.avail { border-bottom: 5px solid #10B981; }
 .ldp-card.warn { border-bottom: 5px solid #FBBF24; animation: glow 2s infinite; }
-.ldp-card.sold { border-bottom: 5px solid #EF4444; opacity: 0.7; filter: grayscale(30%); }
+
+/* 1. Hapus efek grayscale 30% dari kartu agar tombol merahnya tetap menyala tegas */
+.ldp-card.sold { border-bottom: 5px solid #EF4444; opacity: 0.8; } 
+
+/* 2. Tambahkan ini: Targetkan KHUSUS foto member yang kartunya berstatus 'sold' */
+.ldp-card.sold .c-photo { 
+    filter: grayscale(100%); /* Ubah foto jadi 100% hitam putih */
+    opacity: 0.6; /* Redupkan sedikit fotonya agar semakin terasa "mati/habis" */
+}
 
 @keyframes glow { 0% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } 50% { box-shadow: 0 0 15px rgba(251,191,36,0.3); } 100% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } }
 
