@@ -70,24 +70,25 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     background-position: center 10%; 
     background-repeat: no-repeat;
     margin: 0 auto 12px auto; 
-    border: 2px solid rgba(255, 255, 255, 0.9); 
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
-    background-color: #2a2a2a; 
+    /* Border disesuaikan agar cocok di Light/Dark */
+    border: 2px solid rgba(128, 128, 128, 0.2); 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+    background-color: rgba(128, 128, 128, 0.1); 
 }
 
 .c-jalur { 
     font-size: 10px; 
-    opacity: 0.5; 
+    opacity: 0.6; /* Opacity dinaikkan sedikit agar lebih terbaca di Light Mode */
     font-weight: 600; 
     text-transform: uppercase; 
     margin-bottom: 8px; 
     letter-spacing: 0.5px; 
     width: 100%; 
-    max-width: 100%; /* Memaksa teks agar tidak meluber */
+    max-width: 100%;
     white-space: nowrap; 
     overflow: hidden; 
     text-overflow: ellipsis; 
-    display: block; /* Kunci agar ellipsis bekerja sempurna di dalam flex container */
+    display: block; 
 }
 .c-member { 
     font-weight: 700; font-size: 15px; line-height: 1.2; margin-bottom: 8px; 
@@ -99,26 +100,29 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 /* --- SMART PROGRESS BUTTON (UI Upgrade) --- */
 .c-stats { 
     font-size: 11px; 
-    color: #888; 
+    color: inherit; /* Mengikuti warna teks tema (hitam di Light, putih di Dark) */
+    opacity: 0.75; 
     margin-bottom: 6px; 
     display: flex; 
     justify-content: center;
     width: 100%; 
     padding: 0 4px; 
 }
-.c-stats b { color: #ccc; margin-left: 3px; }
+/* Warna angka terjual juga mengikuti tema */
+.c-stats b { color: inherit; opacity: 1; margin-left: 3px; font-weight: 800; }
 
 .c-prog-btn { 
     position: relative; 
     width: 100%; 
     height: 32px; 
-    background: rgba(255,255,255,0.05); 
+    /* Gunakan abu-abu netral agar terlihat sebagai 'bar kosong' di Light maupun Dark */
+    background: rgba(128,128,128,0.2); 
     border-radius: 8px; 
     overflow: hidden; 
     display: flex; 
     align-items: center; 
     justify-content: center; 
-    border: 1px solid rgba(255,255,255,0.1); 
+    border: 1px solid rgba(128,128,128,0.3); 
     transition: all 0.2s ease; 
 }
 .c-prog-btn:hover { border-color: rgba(255,255,255,0.3); transform: translateY(-1px); }
@@ -444,9 +448,9 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
         
-        # Kalau TAMPILAN NORMAL (Tidak di-search), render judul Sesi langsung pakai HTML
+       # Kalau TAMPILAN NORMAL (Tidak di-search), render judul Sesi langsung pakai HTML
         if not is_search_mode:
-            master_html_buffer += f"<h4 style='color: white; margin-top: 5px; margin-bottom: 15px; font-family: Inter, sans-serif; font-size: 16px;'>{sesi_label} <span style='opacity:0.5; font-size: 13px; font-weight: 500;'>{time_info}</span></h4>"
+            master_html_buffer += f"<h4 style='color: inherit; margin-top: 5px; margin-bottom: 15px; font-family: Inter, sans-serif; font-size: 16px;'>{sesi_label} <span style='opacity:0.5; font-size: 13px; font-weight: 500;'>{time_info}</span></h4>"
             master_html_buffer += '<div class="cards-grid">'
             
         for m in members:
@@ -597,24 +601,31 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             }} catch(e) {{}}
 
             // Fungsi pembantu untuk memicu persiapan render banner & padding laporan
-            function siapkanTarget() {{
+            function siapkanTarget() {
                 const target = window.parent.document.getElementById("laporan-container");
                 const banner = window.parent.document.getElementById("share-banner");
-                if (target) {{
+                
+                // BACA WARNA TEMA STREAMLIT SAAT INI (Light/Dark Mode)
+                const appBgColor = window.getComputedStyle(window.parent.document.body).backgroundColor;
+
+                if (target) {
                     if(banner) banner.style.display = "flex";
                     target.style.padding = "20px";
-                    target.style.backgroundColor = "#0E1117";
+                    target.style.backgroundColor = appBgColor; // Gunakan warna dinamis
                     target.style.borderRadius = "15px";
-                }}
+                    
+                    // Simpan warna di dataset agar bisa dibaca oleh html2canvas
+                    target.dataset.themeBg = appBgColor; 
+                }
                 return target;
-            }}
+            }
 
             // Fungsi pembantu untuk mengembalikan tampilan dashboard seperti semula
-            function kembalikanTarget(target, banner) {{
+            function kembalikanTarget(target, banner) {
                 if(banner) banner.style.display = "none";
                 target.style.padding = "0px";
                 target.style.backgroundColor = "transparent";
-            }}
+            }
 
             // --- FUNGSI 1: DOWNLOAD GAMBAR ---
             document.getElementById("dl-btn").addEventListener("click", function() {{
