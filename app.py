@@ -480,38 +480,44 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 jalur_label = f"{date_short} • {sesi_short}{time_str} • {jalur_label}"
             
             # --- FIX BUG HTML2CANVAS (SPASI HILANG) ---
-            # Paksa spasi menggunakan entitas HTML &nbsp; agar tidak digabung saat difoto
             display_member = member_name.replace(' ', '&nbsp;')
             display_jalur = jalur_label.replace(' ', '&nbsp;')
             
-            safe_name_img = member_name.strip().lower()
-            raw_photo_url = photo_map.get(safe_name_img, "")
-            
-            if raw_photo_url:
-                proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=100&output=webp"
-            else:
-                proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                
-            img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" title="{member_name}"></div>'
-            
+            # 1. Pindahkan kalkulasi kuota ke ATAS sebelum menentukan gambar
             total_slot_capacity = tickets_sold + current_quota
             sold_percentage = (tickets_sold / total_slot_capacity * 100) if total_slot_capacity > 0 else 0
             
+            is_sold_out = False
             if not is_before_deadline:
                 cls, btn_text = "sold", "TUTUP"
                 bar_color = "#EF4444"
+                is_sold_out = True
             elif current_quota <= 0:
                 cls, btn_text = "sold", "HABIS"
                 sold_percentage = 100
                 bar_color = "#EF4444"
+                is_sold_out = True
             elif current_quota < warn_limit:
-                # Suntikkan &nbsp; pada teks SISA
                 cls, btn_text = "warn", f"SISA&nbsp;{current_quota}"
                 bar_color = "#FBBF24"
             else:
-                # Suntikkan &nbsp; pada teks SISA
                 cls, btn_text = "avail", f"SISA&nbsp;{current_quota}"
                 bar_color = "#10B981"
+
+            # 2. Ambil URL Gambar & Terapkan Grayscale Langsung dari Server CDN
+            safe_name_img = member_name.strip().lower()
+            raw_photo_url = photo_map.get(safe_name_img, "")
+            
+            if raw_photo_url:
+                # Jika habis, tambahkan &filt=greyscale agar gambar fisik dikonversi jadi hitam putih
+                if is_sold_out:
+                    proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=100&output=webp&filt=greyscale"
+                else:
+                    proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=100&output=webp"
+            else:
+                proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                
+            img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" title="{member_name}"></div>'
                 
             combined_ui = f"""
             <div class="c-stats">
