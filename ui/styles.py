@@ -78,7 +78,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     width: 74px; 
     height: 74px; 
     border-radius: 50%; 
-    background-size: 100%; 
+    background-size: 125%; 
     background-position: center 5%; 
     background-repeat: no-repeat;
     margin: 0 auto 12px auto; 
