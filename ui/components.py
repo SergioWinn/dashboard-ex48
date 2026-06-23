@@ -136,18 +136,20 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     waktu_sekarang = now_dt.strftime('%d/%m/%Y %H:%M WIB')
     waktu_save = now_dt.strftime('%d%m%Y_%H%M') 
     
+    # Force uppercase langsung dari Python agar html2canvas tidak error baca font
     judul_event = event_data.get('title', 'JKT48 Exclusive Event').upper()
     safe_event_code = event_id if event_id else "EVENT"
     
     if is_search_mode:
-        report_title = f"SEARCH REPORT: {search_query.upper()}"
+        report_title = f"🔍 {search_query.upper()}"
         safe_query = search_query.strip().replace(' ', '').title()
         file_name = f"Quota_{safe_event_code}_{safe_query}_Save_{waktu_save}"
     else:
-        report_title = "LIVE MONITOR TRACKING REPORT"
+        report_title = f"📅 {selected_date}"
         safe_date = selected_date.split(' ')[0].replace('/', '') 
         file_name = f"Quota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
 
+    # Gunakan spasi normal, CSS pre-wrap yang akan menjaganya
     banner_html = f"""
     <div id="share-banner" class="share-banner" style="display: none;">
         <div class="sb-left">
@@ -155,7 +157,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             <p>{report_title}</p>
         </div>
         <div class="sb-right">
-            <div class="sb-time">GENERATED: {waktu_sekarang}</div>
+            <div class="sb-time">⏱️ {waktu_sekarang}</div>
             <div class="sb-wm">LIVE TRACKER BY @ESTRELLAWIN19</div>
         </div>
     </div>
