@@ -14,7 +14,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     sessions = event_data.get('session', [])
     
     if not sessions:
-        st.info("Sesi belum tersedia untuk event ini.")
+        st.info("Sessions are not available for this event yet.")
         return
 
     now_wib = datetime.utcnow() + timedelta(hours=7)
@@ -84,12 +84,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         if not members:
             continue
 
-        date_str = "Lainnya"
+        date_str = "Others"
         if session_date_wib:
             if session_date_wib.date() == now_wib.date():
-                date_str = f"{session_date_wib.strftime('%d/%m/%Y')} (Hari Ini)"
+                date_str = f"{session_date_wib.strftime('%d/%m/%Y')} (Today)"
             elif session_date_wib.date() == (now_wib + timedelta(days=1)).date():
-                date_str = f"{session_date_wib.strftime('%d/%m/%Y')} (Besok)"
+                date_str = f"{session_date_wib.strftime('%d/%m/%Y')} (Tomorrow)"
             else:
                 date_str = session_date_wib.strftime('%d/%m/%Y')
         elif raw_date:
@@ -111,12 +111,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         for d_sessions in sessions_by_date.values():
             active_sessions.extend(d_sessions)
         if active_sessions:
-            st.success(f"🔎 Menampilkan seluruh jadwal untuk **'{search_query.title()}'** lintas tanggal.")
+            st.success(f"🔎 Showing all schedules for **'{search_query.title()}'** across dates.")
     else:
         if len(unique_dates) > 0:
-            st.markdown(f"📅 **Tanggal Pelaksanaan:** {unique_dates[0] if len(unique_dates) == 1 else ''}")
+            st.markdown(f"📅 **Event Date:** {unique_dates[0] if len(unique_dates) == 1 else ''}")
             if len(unique_dates) > 1:
-                selected_date = st.radio("Pilih Tanggal:", unique_dates, horizontal=True, key=f"filter_date_{event_id}", label_visibility="collapsed")
+                selected_date = st.radio("Select Date:", unique_dates, horizontal=True, key=f"filter_date_{event_id}", label_visibility="collapsed")
                 st.write("")
             else:
                 selected_date = unique_dates[0]
@@ -126,9 +126,9 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
 
     if not active_sessions:
         if search_query:
-            st.warning(f"Member '{search_query.title()}' tidak ditemukan pada event ini.")
+            st.warning(f"Member '{search_query.title()}' not found in this event.")
         else:
-            st.warning("🟢 Bersih! Tidak ada tiket atau sesi available yang aktif saat ini.")
+            st.warning("🟢 All clear! No active tickets or available sessions right now.")
         return
 
     is_search_mode = bool(search_query)
@@ -136,20 +136,18 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     waktu_sekarang = now_dt.strftime('%d/%m/%Y %H:%M WIB')
     waktu_save = now_dt.strftime('%d%m%Y_%H%M') 
     
-    # Force uppercase langsung dari Python agar html2canvas tidak error baca font
     judul_event = event_data.get('title', 'JKT48 Exclusive Event').upper()
     safe_event_code = event_id if event_id else "EVENT"
     
     if is_search_mode:
-        report_title = f"🔍 LAPORAN PENCARIAN: {search_query.upper()}"
+        report_title = f"SEARCH REPORT: {search_query.upper()}"
         safe_query = search_query.strip().replace(' ', '').title()
-        file_name = f"Kuota_{safe_event_code}_{safe_query}_Save_{waktu_save}"
+        file_name = f"Quota_{safe_event_code}_{safe_query}_Save_{waktu_save}"
     else:
-        report_title = f"📅 {selected_date}"
+        report_title = "LIVE MONITOR TRACKING REPORT"
         safe_date = selected_date.split(' ')[0].replace('/', '') 
-        file_name = f"Kuota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
+        file_name = f"Quota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
 
-    # Gunakan spasi normal, CSS pre-wrap yang akan menjaganya
     banner_html = f"""
     <div id="share-banner" class="share-banner" style="display: none;">
         <div class="sb-left">
@@ -157,8 +155,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             <p>{report_title}</p>
         </div>
         <div class="sb-right">
-            <div class="sb-time">⏱️ {waktu_sekarang}</div>
-            <div class="sb-wm">LIVE TRACKER BY @estrellawin19</div>
+            <div class="sb-time">GENERATED: {waktu_sekarang}</div>
+            <div class="sb-wm">LIVE TRACKER BY @ESTRELLAWIN19</div>
         </div>
     </div>
     """
@@ -173,8 +171,9 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         is_before_deadline = sesi['is_before_deadline']
         session_date_wib = sesi['session_date_wib']
 
-        raw_label = sesi.get('label', 'Sesi')
-        sesi_label = re.split(r'[\(·]', raw_label)[0].strip()
+        raw_label = sesi.get('label', 'Session')
+        # Otomatis translate kata "Sesi 1" dari API pusat menjadi "Session 1"
+        sesi_label = re.split(r'[\(·]', raw_label)[0].strip().replace("Sesi", "Session")
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
         
         if not is_search_mode:
@@ -189,7 +188,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             
             if is_search_mode:
                 date_short = session_date_wib.strftime('%d/%m') if session_date_wib else ""
-                sesi_short = sesi_label.replace("Sesi", "S.")
+                sesi_short = sesi_label.replace("Session", "S.").replace("Sesi", "S.")
                 time_range = f"{sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
                 time_str = f" ({time_range})" if time_range else ""
                 jalur_label = f"{date_short} • {sesi_short}{time_str} • {jalur_label}"
@@ -202,19 +201,19 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             
             is_sold_out = False
             if not is_before_deadline:
-                cls, btn_text = "sold", "TUTUP"
+                cls, btn_text = "sold", "CLOSED"
                 bar_color = "#EF4444"
                 is_sold_out = True
             elif current_quota <= 0:
-                cls, btn_text = "sold", "HABIS"
+                cls, btn_text = "sold", "SOLD&nbsp;OUT"
                 sold_percentage = 100
                 bar_color = "#EF4444"
                 is_sold_out = True
             elif current_quota < warn_limit:
-                cls, btn_text = "warn", f"SISA&nbsp;{current_quota}"
+                cls, btn_text = "warn", f"{current_quota}&nbsp;LEFT"
                 bar_color = "#FBBF24"
             else:
-                cls, btn_text = "avail", f"SISA&nbsp;{current_quota}"
+                cls, btn_text = "avail", f"{current_quota}&nbsp;LEFT"
                 bar_color = "#10B981"
 
             safe_name_img = member_name.strip().lower()
@@ -225,7 +224,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             else:
                 proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                 
-            img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" role="img" aria-label="Foto {member_name} JKT48"></div>'
+            img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" role="img" aria-label="{member_name} JKT48 Photo"></div>'
                         
             if is_sold_out:
                 badge_html = "" 
@@ -233,12 +232,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 badge_text = "LOW"
                 badge_html = f'<div class="c-badge">{badge_text}</div>'
             else:
-                badge_text = "TERSEDIA"
+                badge_text = "AVAILABLE"
                 badge_html = f'<div class="c-badge">{badge_text}</div>'
                                 
             combined_ui = f"""
             <div class="c-stats">
-                <span>Terjual:&nbsp;<b>{tickets_sold}</b></span>
+                <span>Sold:&nbsp;<b>{tickets_sold}</b></span>
             </div>
             <div class="c-prog-btn">
                 <div class="c-prog-fill" style="width: {sold_percentage}%; background-color: {bar_color};"></div>
@@ -301,8 +300,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             #copy-btn:hover {{ background: #1D4ED8; box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); }}
         </style>
         
-        <button class="btn-action" id="copy-btn" title="Salin Gambar ke Clipboard" aria-label="Salin gambar infografis ke clipboard">📋</button>
-        <button class="btn-action" id="dl-btn" title="Download Gambar Infografis" aria-label="Unduh gambar infografis">📸</button>
+        <button class="btn-action" id="copy-btn" title="Copy Image to Clipboard" aria-label="Copy infographic image to clipboard">📋</button>
+        <button class="btn-action" id="dl-btn" title="Download Infographic Image" aria-label="Download infographic image">📸</button>
         
         <script>
             try {{
