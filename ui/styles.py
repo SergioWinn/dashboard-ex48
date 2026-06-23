@@ -68,7 +68,10 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card.avail { border-bottom: 5px solid #10B981; }
 .ldp-card.warn { border-bottom: 5px solid #FBBF24; animation: glow 2s infinite; }
 .ldp-card.sold { border-bottom: 5px solid #EF4444; opacity: 0.8; } 
-.ldp-card.sold .c-photo { filter: grayscale(100%); opacity: 0.6; }
+.ldp-card.sold .c-photo { 
+    opacity: 0.35; /* Dibuat sangat transparan sehingga menyatu dengan background */
+    filter: brightness(0.8) saturate(75%); /* Warnanya sedikit saja diturunkan biar tidak terlalu "nyala" */
+}
 
 /* Foto Kabesha */
 .c-photo { 
