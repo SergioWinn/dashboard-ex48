@@ -173,11 +173,10 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     box-shadow: 0 4px 15px rgba(16,185,129,0.2);
     margin-bottom: 15px;
 }
-.sb-left h3 { margin: 0 0 4px 0; font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; word-spacing: 2px; }
-.sb-left p { margin: 0; font-size: 11px; opacity: 0.9; font-weight: 600; word-spacing: 1px; }
+/* HAPUS letter-spacing dan word-spacing yang bikin error canvas! */
+.sb-left h3 { margin: 0 0 4px 0; font-size: 14px; font-weight: 800; text-transform: uppercase; }
+.sb-left p { margin: 0; font-size: 11px; opacity: 0.9; font-weight: 600; }
 .sb-right { text-align: right; }
-.sb-right .sb-time { font-size: 11px; font-weight: 700; background: rgba(0,0,0,0.25); padding: 4px 10px; border-radius: 20px; display: inline-block; border: 1px solid rgba(255,255,255,0.2); }
-.sb-right .sb-wm { font-size: 9px; margin-top: 5px; opacity: 0.8; font-weight: 700; letter-spacing: 0.5px; }
 
 @media (max-width: 500px) {
     .share-banner { flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px; }
