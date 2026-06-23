@@ -40,6 +40,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 
 /* Card Design */
 .ldp-card { 
+    position: relative; /* Wajib ditambahkan agar badge bisa absolut di pojok */
     background: rgba(128,128,128,0.05); 
     border-radius: 15px; 
     padding: 20px 15px; 
@@ -54,36 +55,46 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 }
 .ldp-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-color: rgba(128,128,128,0.3); }
 
-/* Border Status */
+/* --- BADGE STATUS BARU DI POJOK KARTU --- */
+.c-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 8px;
+    font-weight: 800;
+    padding: 4px 8px;
+    border-radius: 12px;
+    color: white;
+    letter-spacing: 0.5px;
+    z-index: 2;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.ldp-card.avail .c-badge { background: #10B981; }
+.ldp-card.warn .c-badge { background: #FBBF24; color: #000; }
+.ldp-card.sold .c-badge { background: #EF4444; }
+
+/* Border Status Tetap Ada Sebagai Aksen */
 .ldp-card.avail { border-bottom: 5px solid #10B981; }
 .ldp-card.warn { border-bottom: 5px solid #FBBF24; animation: glow 2s infinite; }
-
-/* 1. Hapus efek grayscale 30% dari kartu agar tombol merahnya tetap menyala tegas */
 .ldp-card.sold { border-bottom: 5px solid #EF4444; opacity: 0.8; } 
+.ldp-card.sold .c-photo { filter: grayscale(100%); opacity: 0.6; }
 
-/* 2. Tambahkan ini: Targetkan KHUSUS foto member yang kartunya berstatus 'sold' */
-.ldp-card.sold .c-photo { 
-    filter: grayscale(100%); /* Ubah foto jadi 100% hitam putih */
-    opacity: 0.6; /* Redupkan sedikit fotonya agar semakin terasa "mati/habis" */
-}
-
-@keyframes glow { 0% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } 50% { box-shadow: 0 0 15px rgba(251,191,36,0.3); } 100% { box-shadow: 0 0 5px rgba(251,191,36,0.1); } }
-
-/* Foto Kabesha CDN Proxy Async */
+/* Foto Kabesha (Ultra Zoom) */
 .c-photo { 
     width: 74px; 
     height: 74px; 
     border-radius: 50%; 
-    /* 1. Zoom-in 125% agar wajah & pundak member pas memenuhi lingkaran */
-    background-size: 125%; 
-    /* 2. Turunkan sedikit posisinya agar kepala tidak terpotong saat di-zoom */
-    background-position: center 15%; 
+    
+    /* Wajib pakai background-size agar bisa di-zoom memotong area transparan */
+    background-size: 100%; 
+    background-position: center 5%; 
     background-repeat: no-repeat;
+    
     margin: 0 auto 12px auto; 
     border: 2px solid rgba(128, 128, 128, 0.2); 
     box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
-    /* 3. Beri warna solid putih studio agar PNG transparan menjadi solid circle */
     background-color: #ffffff; 
+    display: block;
 }
 .c-jalur { 
     font-size: 10px; 
@@ -509,16 +520,30 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             raw_photo_url = photo_map.get(safe_name_img, "")
             
             if raw_photo_url:
-                # Jika habis, tambahkan &filt=greyscale agar gambar fisik dikonversi jadi hitam putih
+                # Perbesar resolusi tarikan (w=150) agar tidak blur saat di-zoom 180%
                 if is_sold_out:
-                    proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=100&output=webp&filt=greyscale"
+                    proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=150&output=webp&filt=greyscale"
                 else:
-                    proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=100&output=webp"
+                    proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=150&output=webp"
             else:
                 proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                 
-            img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" title="{member_name}"></div>'
-                
+            # === HAPUS TAG <img ...> LALU GANTI DENGAN KODE DI BAWAH INI ===
+            # Kita pakai <div> + background-image agar CSS background-size: 180% bisa bekerja!
+            # Tetap pakai role="img" dan aria-label agar ramah tunanetra (lulus audit Claude).
+            img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" role="img" aria-label="Foto {member_name} JKT48"></div>'
+                        
+            # PERUBAHAN: Penentuan Teks Badge Pojok (Bebas Redundansi)
+            if is_sold_out:
+                # Sembunyikan badge jika sudah habis (foto abu-abu + tombol bawah sudah cukup)
+                badge_html = "" 
+            elif current_quota < warn_limit:
+                badge_text = "LOW"
+                badge_html = f'<div class="c-badge">{badge_text}</div>'
+            else:
+                badge_text = "TERSEDIA"
+                badge_html = f'<div class="c-badge">{badge_text}</div>'
+                                
             combined_ui = f"""
             <div class="c-stats">
                 <span>Terjual:&nbsp;<b>{tickets_sold}</b></span>
@@ -529,10 +554,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             </div>
             """
             
+            # PERUBAHAN: Sisipkan {badge_html} di dalam ldp-card
             card_html = ""
             if current_quota <= 0 or not is_before_deadline: 
                 card_html += (
                     f'<div class="ldp-card {cls}">'
+                    f'{badge_html}'
                     f'<div class="c-jalur" title="{jalur_label}">{display_jalur}</div>'
                     f'{img_html}'
                     f'<div class="c-member">{display_member}</div>'
@@ -544,6 +571,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             else: 
                 card_html += (
                     f'<div class="ldp-card {cls}">'
+                    f'{badge_html}'
                     f'<div class="c-jalur" title="{jalur_label}">{display_jalur}</div>'
                     f'{img_html}'
                     f'<div class="c-member">{display_member}</div>'
@@ -608,8 +636,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             }}
         </style>
         
-        <button class="btn-action" id="copy-btn" title="Salin Gambar ke Clipboard">📋</button>
-        <button class="btn-action" id="dl-btn" title="Download Gambar Infografis">📸</button>
+        <button class="btn-action" id="copy-btn" title="Salin Gambar ke Clipboard" aria-label="Salin gambar infografis ke clipboard">📋</button>
+        <button class="btn-action" id="dl-btn" title="Download Gambar Infografis" aria-label="Unduh gambar infografis">📸</button>
         
         <script>
             // Amankan konfigurasi posisi iframe melayang agar muat dua tombol
