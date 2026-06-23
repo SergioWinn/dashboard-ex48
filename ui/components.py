@@ -148,15 +148,21 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         safe_date = selected_date.split(' ')[0].replace('/', '') 
         file_name = f"Kuota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
 
+    # --- VAKSIN SPASI UNTUK BANNER ---
+    # Ganti spasi biasa menjadi spasi HTML agar tidak ditabrak oleh html2canvas
+    display_judul_event = judul_event.replace(' ', '&nbsp;')
+    display_report_title = report_title.replace(' ', '&nbsp;')
+    display_waktu = waktu_sekarang.replace(' ', '&nbsp;')
+
     banner_html = f"""
     <div id="share-banner" class="share-banner" style="display: none;">
         <div class="sb-left">
-            <h3>{judul_event}</h3>
-            <p>{report_title}</p>
+            <h3>{display_judul_event}</h3>
+            <p>{display_report_title}</p>
         </div>
         <div class="sb-right">
-            <div class="sb-time">⏱️ {waktu_sekarang}</div>
-            <div class="sb-wm">LIVE TRACKER BY @ESTRELLAWIN19</div>
+            <div class="sb-time">⏱️&nbsp;{display_waktu}</div>
+            <div class="sb-wm">LIVE&nbsp;TRACKER&nbsp;BY&nbsp;@ESTRELLAWIN19</div>
         </div>
     </div>
     """
