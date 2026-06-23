@@ -151,8 +151,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     banner_html = f"""
     <div id="share-banner" class="share-banner" style="display: none;">
         <div class="sb-left">
-            <h3>{report_title}</h3>
-            <p>{judul_event}</p>
+            <h3>{judul_event}</h3>
+            <p>{report_title}</p>
         </div>
         <div class="sb-right">
             <div class="sb-time">⏱️ {waktu_sekarang}</div>
