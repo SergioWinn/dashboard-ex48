@@ -145,7 +145,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         safe_query = search_query.strip().replace(' ', '').title()
         file_name = f"Kuota_{safe_event_code}_{safe_query}_Save_{waktu_save}"
     else:
-        report_title = f"📅 LAPORAN TANGGAL: {selected_date}"
+        report_title = f"📅 {selected_date}"
         safe_date = selected_date.split(' ')[0].replace('/', '') 
         file_name = f"Kuota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
 
