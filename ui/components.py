@@ -221,10 +221,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             raw_photo_url = photo_map.get(safe_name_img, "")
             
             if raw_photo_url:
-                if is_sold_out:
-                    proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=150&output=webp&filt=greyscale"
-                else:
-                    proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=150&output=webp"
+                proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=150&output=webp"
             else:
                 proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                 
