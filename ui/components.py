@@ -192,11 +192,14 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 date_short = session_date_wib.strftime('%d/%m') if session_date_wib else ""
                 sesi_short = sesi_label.replace("Session", "S.").replace("Sesi", "S.")
                 time_range = f"{sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
-                time_str = f" ({time_range})" if time_range else ""
-                jalur_label = f"{date_short} • {sesi_short}{time_str} • {jalur_label}"
+                
+                # PERBAIKAN: Gunakan tag <br> agar teks turun ke bawah dan tidak nabrak badge
+                time_str = f"<br>({time_range})" if time_range else ""
+                jalur_label = f"{date_short} • {sesi_short}{time_str}<br>{jalur_label}"
             
-            display_member = member_name.replace(' ', '&nbsp;')
-            display_jalur = jalur_label.replace(' ', '&nbsp;')
+            display_member = member_name.replace(' ', '&nbsp;')            
+            # PERBAIKAN: Hapus .replace(' ', '&nbsp;') agar teks bisa wrap/turun otomatis
+            display_jalur = jalur_label
             
             total_slot_capacity = tickets_sold + current_quota
             sold_percentage = (tickets_sold / total_slot_capacity * 100) if total_slot_capacity > 0 else 0
