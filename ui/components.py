@@ -290,56 +290,60 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     if st.query_params.get("akses") in KODE_ADMIN_LIST:
         safe_name = file_name.replace('(', '').replace(')', '')
         
-        # --- 1. RENDER HTML HIDDEN UNTUK 4 GAMBAR STATS X THREAD ---
+        # --- 1. RENDER HTML HIDDEN UNTUK GAMBAR STATS X THREAD (MAX 5 MEMBER/PIC) ---
         team_stats = calculate_team_visual_stats(event_data, photo_map)
         stats_html_buffer = '<div id="hidden-stats-container" style="display: none; position: absolute; top: -9999px;">'
         
-        team_colors = {
-            "LOVE": "#EC4899",     # Pink
-            "DREAM": "#3B82F6",    # Blue
-            "PASSION": "#8B5CF6",  # Purple
-            "TRAINEE": "#10B981"   # Green
-        }
+        color = "#10B981" # Warna Default Seragam
         
         for team, members_data in team_stats.items():
-            color = team_colors.get(team, "#10B981")
-            
-            stats_html_buffer += f"""
-            <div id="stats-{team}" style="width: 800px; background: #0f172a; padding: 40px; border-radius: 20px; font-family: 'Inter', sans-serif; color: white; position: relative; overflow: hidden; border: 2px solid {color}40;">
-                <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: {color}; filter: blur(100px); opacity: 0.3; border-radius: 50%;"></div>
+            if not members_data:
+                continue
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid {color}40; padding-bottom: 20px; margin-bottom: 30px;">
-                    <div>
-                        <h2 style="margin: 0; font-size: 36px; font-weight: 800; color: {color};">TEAM {team}</h2>
-                        <p style="margin: 5px 0 0 0; font-size: 16px; opacity: 0.8; letter-spacing: 2px; font-weight: 600;">TOP 4 HIGHEST SOLD RATE</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <h3 style="margin: 0; font-size: 20px; font-weight: 800;">#EstrellaStats</h3>
-                        <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.6; font-weight: 600;">{waktu_sekarang}</p>
-                    </div>
-                </div>
-                
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
-            """
+            # Pecah list member menjadi grup per 5 orang
+            chunk_size = 5
+            chunks = [members_data[i:i + chunk_size] for i in range(0, len(members_data), chunk_size)]
             
-            for m in members_data:
-                proxy_url = f"https://wsrv.nl/?url={m['photo']}&w=150&output=webp" if m['photo'] else "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                rate = m['sold_rate']
+            for idx, chunk in enumerate(chunks):
+                chunk_id = f"{team}_{idx+1}"
+                page_info = f" (Part {idx+1}/{len(chunks)})" if len(chunks) > 1 else ""
+                
                 stats_html_buffer += f"""
-                    <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
-                        <div style="width: 100px; height: 100px; border-radius: 50%; background-image: url('{proxy_url}'); background-size: 130%; background-position: center 15%; margin: 0 auto 15px auto; border: 3px solid {color}; box-shadow: 0 5px 15px {color}40;"></div>
-                        <h4 style="margin: 0 0 10px 0; font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{m['name']}</h4>
-                        <div style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px;">
-                            <div style="font-size: 24px; font-weight: 800; color: {color};">{rate:.1f}%</div>
-                            <div style="font-size: 12px; opacity: 0.7; margin-top: 5px; font-weight: 600;">{m['sold']}/{m['total']} Sold</div>
+                <div id="stats-{chunk_id}" style="width: 900px; background: #0f172a; padding: 40px; border-radius: 20px; font-family: 'Inter', sans-serif; color: white; position: relative; overflow: hidden; border: 2px solid {color}40; margin-bottom: 20px;">
+                    <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: {color}; filter: blur(100px); opacity: 0.3; border-radius: 50%;"></div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid {color}40; padding-bottom: 20px; margin-bottom: 30px;">
+                        <div>
+                            <h2 style="margin: 0; font-size: 32px; font-weight: 800; color: {color};">TEAM {team}{page_info}</h2>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.8; letter-spacing: 2px; font-weight: 600;">FULL ROSTER SOLD RATE</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <h3 style="margin: 0; font-size: 20px; font-weight: 800;">#EstrellaStats</h3>
+                            <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.6; font-weight: 600;">{waktu_sekarang}</p>
                         </div>
                     </div>
+                    
+                    <div style="display: flex; gap: 20px; justify-content: flex-start;">
                 """
-            
-            stats_html_buffer += """
+                
+                for m in chunk:
+                    proxy_url = f"https://wsrv.nl/?url={m['photo']}&w=150&output=webp" if m['photo'] else "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                    rate = m['sold_rate']
+                    stats_html_buffer += f"""
+                        <div style="flex: 1; max-width: 150px; min-width: 140px; background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px 10px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+                            <div style="width: 80px; height: 80px; border-radius: 50%; background-image: url('{proxy_url}'); background-size: 130%; background-position: center 15%; margin: 0 auto 15px auto; border: 3px solid {color}; box-shadow: 0 5px 15px {color}40;"></div>
+                            <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{m['name']}">{m['name']}</h4>
+                            <div style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 8px;">
+                                <div style="font-size: 20px; font-weight: 800; color: {color};">{rate:.1f}%</div>
+                                <div style="font-size: 11px; opacity: 0.7; margin-top: 5px; font-weight: 600;">{m['sold']}/{m['total']}</div>
+                            </div>
+                        </div>
+                    """
+                
+                stats_html_buffer += """
+                    </div>
                 </div>
-            </div>
-            """
+                """
         
         stats_html_buffer += '</div>'
         st.markdown(stats_html_buffer, unsafe_allow_html=True)
@@ -361,7 +365,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             #copy-btn:hover {{ background: #1D4ED8; box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); }}
         </style>
         
-        <button class="btn-action" id="dl-stats-btn" title="Download Top 4 Team Stats (For X Thread)" aria-label="Download Team Stats">📊</button>
+        <button class="btn-action" id="dl-stats-btn" title="Download Full Team Stats (For X Thread)" aria-label="Download Team Stats">📊</button>
         <button class="btn-action" id="copy-btn" title="Copy Image to Clipboard" aria-label="Copy infographic image to clipboard">📋</button>
         <button class="btn-action" id="dl-btn" title="Download Infographic Image" aria-label="Download infographic image">📸</button>
         
@@ -392,27 +396,29 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 target.style.padding = "0px"; target.style.backgroundColor = "transparent";
             }}
 
-            // TOMBOL DOWNLOAD 4 TIM STATS (BARU)
+            // TOMBOL DOWNLOAD FULL TEAM STATS DENGAN PAGINATION
             document.getElementById("dl-stats-btn").addEventListener("click", async function() {{
                 const btn = this;
                 btn.innerText = "⏳"; btn.style.background = "#FBBF24";
                 
-                const teams = ["LOVE", "DREAM", "PASSION", "TRAINEE"];
                 const container = window.parent.document.getElementById("hidden-stats-container");
                 
                 if(container) {{
                     container.style.display = "block"; 
                     
-                    for(let team of teams) {{
-                        const target = window.parent.document.getElementById("stats-" + team);
-                        if(target) {{
-                            await new Promise(r => setTimeout(r, 300));
-                            const canvas = await window.html2canvas(target, {{ useCORS: true, backgroundColor: "#0f172a", scale: 2 }});
-                            let link = document.createElement("a"); 
-                            link.download = `EstrellaStats_${{team}}.png`; 
-                            link.href = canvas.toDataURL("image/png"); 
-                            link.click();
-                        }}
+                    // Ambil semua elemen div yang ID-nya berawalan 'stats-'
+                    const statCards = container.querySelectorAll('[id^="stats-"]');
+                    
+                    for(let i=0; i<statCards.length; i++) {{
+                        const target = statCards[i];
+                        await new Promise(r => setTimeout(r, 400)); // Jeda agar canvas punya waktu nge-render
+                        const canvas = await window.html2canvas(target, {{ useCORS: true, backgroundColor: "#0f172a", scale: 2 }});
+                        let link = document.createElement("a"); 
+                        // Ambil nama file dinamis: "stats-LOVE_1" jadi "EstrellaStats_LOVE_1.png"
+                        let fileName = target.id.replace("stats-", "EstrellaStats_") + ".png";
+                        link.download = fileName; 
+                        link.href = canvas.toDataURL("image/png"); 
+                        link.click();
                     }}
                     container.style.display = "none";
                 }}
