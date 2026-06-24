@@ -396,35 +396,54 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 target.style.padding = "0px"; target.style.backgroundColor = "transparent";
             }}
 
-            // TOMBOL DOWNLOAD FULL TEAM STATS DENGAN PAGINATION
-            document.getElementById("dl-stats-btn").addEventListener("click", async function() {{
+            // TOMBOL DOWNLOAD FULL TEAM STATS DENGAN PAGINATION (FIXED)
+            document.getElementById("dl-stats-btn").addEventListener("click", async function() {
                 const btn = this;
                 btn.innerText = "⏳"; btn.style.background = "#FBBF24";
                 
                 const container = window.parent.document.getElementById("hidden-stats-container");
                 
-                if(container) {{
-                    container.style.display = "block"; 
-                    
-                    // Ambil semua elemen div yang ID-nya berawalan 'stats-'
+                if(container) {
                     const statCards = container.querySelectorAll('[id^="stats-"]');
                     
-                    for(let i=0; i<statCards.length; i++) {{
+                    for(let i=0; i<statCards.length; i++) {
                         const target = statCards[i];
-                        await new Promise(r => setTimeout(r, 400)); // Jeda agar canvas punya waktu nge-render
-                        const canvas = await window.html2canvas(target, {{ useCORS: true, backgroundColor: "#0f172a", scale: 2 }});
+                        
+                        // 1. Trik Clone: Gandakan elemen agar bisa dirender nyata oleh DOM
+                        const clone = target.cloneNode(true);
+                        
+                        // 2. Taruh clone di layar dengan posisi Fixed, tapi sembunyikan di belakang (z-index)
+                        clone.style.position = "fixed";
+                        clone.style.top = "0px";
+                        clone.style.left = "0px";
+                        clone.style.zIndex = "-9999"; 
+                        clone.style.display = "block";
+                        window.parent.document.body.appendChild(clone);
+                        
+                        // 3. Beri waktu browser untuk memuat kalkulasi Flexbox secara nyata
+                        await new Promise(r => setTimeout(r, 400)); 
+                        
+                        // 4. Render Clone-nya
+                        const canvas = await window.html2canvas(clone, { 
+                            useCORS: true, 
+                            backgroundColor: "#0f172a", 
+                            scale: 2 
+                        });
+                        
+                        // 5. Download hasilnya
                         let link = document.createElement("a"); 
-                        // Ambil nama file dinamis: "stats-LOVE_1" jadi "EstrellaStats_LOVE_1.png"
                         let fileName = target.id.replace("stats-", "EstrellaStats_") + ".png";
                         link.download = fileName; 
                         link.href = canvas.toDataURL("image/png"); 
                         link.click();
-                    }}
-                    container.style.display = "none";
-                }}
+                        
+                        // 6. Bersihkan clone dari layar
+                        window.parent.document.body.removeChild(clone);
+                    }
+                }
                 
                 btn.innerText = "📊"; btn.style.background = "#8B5CF6";
-            }});
+            });
 
             document.getElementById("dl-btn").addEventListener("click", function() {{ 
                 const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
