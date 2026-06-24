@@ -142,11 +142,11 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     safe_event_code = event_id if event_id else "EVENT"
     
     if is_search_mode:
-        report_title = f"🔍 {search_query.upper()}"
+        report_title = f"🔍 SEARCH REPORT: {search_query.upper()}"
         safe_query = search_query.strip().replace(' ', '').title()
         file_name = f"Quota_{safe_event_code}_{safe_query}_Save_{waktu_save}"
     else:
-        report_title = f"📅 {selected_date}"
+        report_title = f"📅 EVENT DATE: {selected_date}"
         safe_date = selected_date.split(' ')[0].replace('/', '') 
         file_name = f"Quota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
 
@@ -406,11 +406,10 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                     for(let team of teams) {{
                         const target = window.parent.document.getElementById("stats-" + team);
                         if(target) {{
-                            // Beri jeda sedikit per gambar agar tidak crash
                             await new Promise(r => setTimeout(r, 300));
                             const canvas = await window.html2canvas(target, {{ useCORS: true, backgroundColor: "#0f172a", scale: 2 }});
                             let link = document.createElement("a"); 
-                            link.download = `EstrellaStats_${team}.png`; 
+                            link.download = `EstrellaStats_${{team}}.png`; 
                             link.href = canvas.toDataURL("image/png"); 
                             link.click();
                         }}
@@ -421,7 +420,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 btn.innerText = "📊"; btn.style.background = "#8B5CF6";
             }});
 
-            document.getElementById("dl-btn").addEventListener("click", function() {{ ... // (Kode dl-btn lama biarkan sama)
+            document.getElementById("dl-btn").addEventListener("click", function() {{ 
                 const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
                 if(target) {{
                     btn.innerText = "⏳"; btn.style.background = "#FBBF24";
@@ -435,35 +434,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 }}
             }});
 
-            document.getElementById("copy-btn").addEventListener("click", function() {{ ... // (Kode copy-btn lama biarkan sama)
-                const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
-                if(target) {{
-                    btn.innerText = "⏳"; btn.style.background = "#FBBF24";
-                    setTimeout(() => {{
-                        window.html2canvas(target, {{ useCORS: true, backgroundColor: target.dataset.themeBg, scale: 2 }}).then(canvas => {{
-                            kembalikanTarget(target, banner);
-                            canvas.toBlob(function(blob) {{
-                                try {{
-                                    navigator.clipboard.write([new ClipboardItem({{ "image/png": blob }})]).then(function() {{
-                                        btn.innerText = "✅"; btn.style.background = "#10B981"; 
-                                        setTimeout(() => {{ btn.innerText = "📋"; btn.style.background = "#3B82F6"; }}, 1500);
-                                    }}).catch(function(err) {{
-                                        btn.innerText = "❌"; btn.style.background = "#EF4444";
-                                        setTimeout(() => {{ btn.innerText = "📋"; btn.style.background = "#3B82F6"; }}, 1500);
-                                    }});
-                                }} catch (e) {{
-                                    btn.innerText = "❌"; btn.style.background = "#EF4444";
-                                    setTimeout(() => {{ btn.innerText = "📋"; btn.style.background = "#3B82F6"; }}, 1500);
-                                }}
-                            }}, "image/png");
-                        }});
-                    }}, 150);
-                }}
-            }});
-        </script>
-        """, height=70)
-
-            document.getElementById("copy-btn").addEventListener("click", function() {{
+            document.getElementById("copy-btn").addEventListener("click", function() {{ 
                 const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
                 if(target) {{
                     btn.innerText = "⏳"; btn.style.background = "#FBBF24";
