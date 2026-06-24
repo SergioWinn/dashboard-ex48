@@ -13,17 +13,16 @@ def get_dynamic_team_mapping():
             if data.get("status"):
                 for m in data.get("data", []):
                     safe_name = m.get("name", "").strip().lower()
-                    team_type = m.get("type", "TRAINEE") # Default jika kosong
+                    team_type = m.get("type", "TRAINEE")
                     team_mapping[safe_name] = team_type
     except:
         pass
     return team_mapping
 
 def calculate_team_visual_stats(event_data, photo_map):
-    """Menghitung dan mengelompokkan Top 4 member per tim"""
+    """Menghitung dan mengelompokkan SELURUH member per tim"""
     team_mapping = get_dynamic_team_mapping()
     
-    # Wadah untuk perhitungan
     teams = {"LOVE": [], "DREAM": [], "PASSION": [], "TRAINEE": []}
     member_accumulator = {}
     
@@ -36,7 +35,6 @@ def calculate_team_visual_stats(event_data, photo_map):
             
             safe_name = name.strip().lower()
             
-            # Jika member belum ada di akumulator, set data awalnya
             if safe_name not in member_accumulator:
                 team_type = team_mapping.get(safe_name, "TRAINEE")
                 if team_type not in teams:
@@ -50,11 +48,9 @@ def calculate_team_visual_stats(event_data, photo_map):
                     "photo": photo_map.get(safe_name, "")
                 }
             
-            # Akumulasi tiket lintas sesi
             member_accumulator[safe_name]["sold"] += sold
             member_accumulator[safe_name]["total"] += (sold + avail)
             
-    # Hitung persentase dan masukkan ke masing-masing tim
     for data in member_accumulator.values():
         total = data["total"]
         sold = data["sold"]
@@ -68,8 +64,8 @@ def calculate_team_visual_stats(event_data, photo_map):
             "photo": data["photo"]
         })
         
-    # Urutkan berdasarkan persentase tertinggi, lalu ambil maksimal 4 (Top 4)
+    # Urutkan berdasarkan persentase tertinggi (Tanpa batasan [:4])
     for team in teams:
-        teams[team] = sorted(teams[team], key=lambda x: (x["sold_rate"], x["sold"]), reverse=True)[:4]
+        teams[team] = sorted(teams[team], key=lambda x: (x["sold_rate"], x["sold"]), reverse=True)
         
     return teams
