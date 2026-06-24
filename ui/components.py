@@ -4,7 +4,6 @@ import streamlit as st
 import re
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
-from core.stats import calculate_pivoted_team_stats
 
 def render_event_cards(event_data, search_query, nickname_map, photo_map, available_only=False):
     event_id = event_data.get('code', '')
@@ -137,6 +136,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     waktu_sekarang = now_dt.strftime('%d/%m/%Y %H:%M WIB')
     waktu_save = now_dt.strftime('%d%m%Y_%H%M') 
     
+    # Force uppercase langsung dari Python agar html2canvas tidak error baca font
     judul_event = event_data.get('title', 'JKT48 Exclusive Event').upper()
     safe_event_code = event_id if event_id else "EVENT"
     
@@ -149,6 +149,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         safe_date = selected_date.split(' ')[0].replace('/', '') 
         file_name = f"Quota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
 
+    # Gunakan spasi normal, CSS pre-wrap yang akan menjaganya
     banner_html = f"""
     <div id="share-banner" class="share-banner" style="display: none;">
         <div class="sb-left">
@@ -173,6 +174,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         session_date_wib = sesi['session_date_wib']
 
         raw_label = sesi.get('label', 'Session')
+        # Otomatis translate kata "Sesi 1" dari API pusat menjadi "Session 1"
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip().replace("Sesi", "Session")
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
         
@@ -286,76 +288,6 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     KODE_ADMIN_LIST = st.secrets.get("ADMIN_KEYS", [])
     if st.query_params.get("akses") in KODE_ADMIN_LIST:
         safe_name = file_name.replace('(', '').replace(')', '')
-        
-        # --- 1. RENDER INFOGRAFIS TIM TERSEMBUNYI (MAX 5 MEMBER / PIC) ---
-        pivoted_teams = calculate_pivoted_team_stats(event_data, photo_map)
-        stats_html_buffer = '<div id="hidden-stats-container" style="display: none; position: absolute; top: -9999px;">'
-        
-        default_color = "#10B981"
-        
-        for team, members_list in pivoted_teams.items():
-            if not members_list:
-                continue
-                
-            # Bagi roster member ke dalam chunk per 5 orang
-            chunks = [members_list[i:i + 5] for i in range(0, len(members_list), 5)]
-            
-            for idx, chunk in enumerate(chunks):
-                chunk_id = f"{team}_{idx+1}"
-                page_info = f" (Part {idx+1}/{len(chunks)})" if len(chunks) > 1 else ""
-                
-                stats_html_buffer += f"""
-                <div id="stats-{chunk_id}" style="width: 950px; background: #0f172a; padding: 35px; border-radius: 20px; font-family: 'Inter', sans-serif; color: white; border: 2px solid {default_color}30; margin-bottom: 25px; box-sizing: border-box;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid {default_color}30; padding-bottom: 15px; margin-bottom: 25px;">
-                        <div>
-                            <h2 style="margin: 0; font-size: 30px; font-weight: 800; color: {default_color}; letter-spacing: 1px;">TEAM {team}{page_info}</h2>
-                            <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.7; font-weight: 600; text-transform: uppercase;">{judul_event}</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <h3 style="margin: 0; font-size: 18px; font-weight: 800; letter-spacing: 0.5px;">#EstrellaStats</h3>
-                            <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.5; font-weight: 600;">{waktu_sekarang}</p>
-                        </div>
-                    </div>
-                    
-                    <div style="display: flex; gap: 15px; justify-content: flex-start; flex-wrap: nowrap;">
-                """
-                
-                for m in chunk:
-                    p_url = f"https://wsrv.nl/?url={m['photo']}&w=150&output=webp" if m['photo'] else "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                    
-                    stats_html_buffer += f"""
-                        <div style="flex: 1; max-width: 165px; min-width: 150px; background: rgba(255,255,255,0.03); border-radius: 14px; padding: 15px 10px; text-align: center; border: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; align-items: center;">
-                            <div style="width: 76px; height: 76px; border-radius: 50%; background-image: url('{p_url}'); background-size: 130%; background-position: center 15%; margin-bottom: 12px; border: 2px solid {default_color}; box-shadow: 0 4px 10px {default_color}25;"></div>
-                            <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;" title="{m['name']}">{m['name']}</h4>
-                            
-                            <div style="width: 100%; display: flex; flex-direction: column; gap: 5px;">
-                    """
-                    
-                    for s in m["sessions"]:
-                        s_color = "#EF4444" if s["is_sold_out"] else default_color
-                        bg_opacity = "rgba(239,68,68,0.15)" if s["is_sold_out"] else "rgba(255,255,255,0.05)"
-                        
-                        stats_html_buffer += f"""
-                                <div style="display: flex; justify-content: space-between; font-size: 11px; background: {bg_opacity}; padding: 5px 8px; border-radius: 6px; border-left: 3px solid {s_color};">
-                                    <span style="opacity: 0.6; font-weight: 600;">{s['label']}</span>
-                                    <span style="font-weight: 700; color: {s_color};">{s['sold']}/{s['total']}</span>
-                                </div>
-                        """
-                        
-                    stats_html_buffer += """
-                            </div>
-                        </div>
-                    """
-                    
-                stats_html_buffer += """
-                    </div>
-                </div>
-                """
-                
-        stats_html_buffer += '</div>'
-        st.markdown(stats_html_buffer, unsafe_allow_html=True)
-        
-        # --- 2. INJEKSI JAVASCRIPT DAN 3 TOMBOL UTAMA ---
         components.html(f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <style>
@@ -364,15 +296,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 color: white; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 20px; cursor: pointer; 
                 display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); outline: none;
             }}
-            #dl-stats-btn {{ background: #8B5CF6; }}
-            #dl-stats-btn:hover {{ background: #7C3AED; box-shadow: 0 0 15px rgba(139, 92, 246, 0.6); }}
             #dl-btn {{ background: #10B981; }}
             #dl-btn:hover {{ background: #0D9488; box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }}
             #copy-btn {{ background: #3B82F6; }}
             #copy-btn:hover {{ background: #1D4ED8; box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); }}
         </style>
         
-        <button class="btn-action" id="dl-stats-btn" title="Download Full Team Stats (For X Thread)" aria-label="Download Team Stats">📊</button>
         <button class="btn-action" id="copy-btn" title="Copy Image to Clipboard" aria-label="Copy infographic image to clipboard">📋</button>
         <button class="btn-action" id="dl-btn" title="Download Infographic Image" aria-label="Download infographic image">📸</button>
         
@@ -381,7 +310,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 const iframe = window.frameElement;
                 if (iframe) {{
                     iframe.style.position = 'fixed'; iframe.style.bottom = '30px'; iframe.style.right = '30px';
-                    iframe.style.width = '190px'; iframe.style.height = '65px'; iframe.style.zIndex = '999999'; iframe.style.border = 'none';
+                    iframe.style.width = '130px'; iframe.style.height = '65px'; iframe.style.zIndex = '999999'; iframe.style.border = 'none';
                 }}
             }} catch(e) {{}}
 
@@ -403,57 +332,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 target.style.padding = "0px"; target.style.backgroundColor = "transparent";
             }}
 
-            // METODE CLONE ANTI-GEPENG UNTUK MULTI-PAGINATION INFOGRAFIS TIM
-            document.getElementById("dl-stats-btn").addEventListener("click", async function() {{
-                const btn = this;
-                btn.innerText = "⏳"; btn.style.background = "#FBBF24";
-                
-                const container = window.parent.document.getElementById("hidden-stats-container");
-                
-                if(container) {{
-                    const statCards = container.querySelectorAll('[id^="stats-"]');
-                    
-                    for(let i=0; i<statCards.length; i++) {{
-                        const originalTarget = statCards[i];
-                        
-                        // Kloning elemen ke DOM aktif agar Flexbox/lebar terbaca sempurna oleh browser
-                        const clone = originalTarget.cloneNode(true);
-                        clone.style.position = "fixed";
-                        clone.style.top = "0px";
-                        clone.style.left = "0px";
-                        clone.style.zIndex = "-99999"; 
-                        clone.style.display = "block";
-                        window.parent.document.body.appendChild(clone);
-                        
-                        // Amankan waktu tunggu render
-                        await new Promise(r => setTimeout(r, 450)); 
-                        
-                        const canvas = await window.html2canvas(clone, {{ 
-                            useCORS: true, 
-                            backgroundColor: "#0f172a", 
-                            scale: 2 
-                        }});
-                        
-                        let link = document.createElement("a"); 
-                        let fileName = originalTarget.id.replace("stats-", "EstrellaStats_") + ".png";
-                        link.download = fileName; 
-                        link.href = canvas.toDataURL("image/png"); 
-                        link.click();
-                        
-                        // Bersihkan kembali kloningan dari DOM
-                        window.parent.document.body.removeChild(clone);
-                    }}
-                }}
-                
-                btn.innerText = "📊"; btn.style.background = "#8B5CF6";
-            }});
-
-            document.getElementById("dl-btn").addEventListener("click", function() {{ 
+            document.getElementById("dl-btn").addEventListener("click", function() {{
                 const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
                 if(target) {{
                     btn.innerText = "⏳"; btn.style.background = "#FBBF24";
                     setTimeout(() => {{
-                        window.parent.html2canvas(target, {{ useCORS: true, backgroundColor: target.dataset.themeBg, scale: 2 }}).then(canvas => {{
+                        window.html2canvas(target, {{ useCORS: true, backgroundColor: target.dataset.themeBg, scale: 2 }}).then(canvas => {{
                             kembalikanTarget(target, banner);
                             let link = document.createElement("a"); link.download = "{safe_name}.png"; link.href = canvas.toDataURL("image/png"); link.click();
                             btn.innerText = "📸"; btn.style.background = "#10B981";
@@ -462,12 +346,12 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 }}
             }});
 
-            document.getElementById("copy-btn").addEventListener("click", function() {{ 
+            document.getElementById("copy-btn").addEventListener("click", function() {{
                 const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
                 if(target) {{
                     btn.innerText = "⏳"; btn.style.background = "#FBBF24";
                     setTimeout(() => {{
-                        window.parent.html2canvas(target, {{ useCORS: true, backgroundColor: target.dataset.themeBg, scale: 2 }}).then(canvas => {{
+                        window.html2canvas(target, {{ useCORS: true, backgroundColor: target.dataset.themeBg, scale: 2 }}).then(canvas => {{
                             kembalikanTarget(target, banner);
                             canvas.toBlob(function(blob) {{
                                 try {{
