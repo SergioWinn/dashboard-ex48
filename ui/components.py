@@ -396,17 +396,17 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 target.style.padding = "0px"; target.style.backgroundColor = "transparent";
             }}
 
-            // TOMBOL DOWNLOAD FULL TEAM STATS DENGAN PAGINATION (FIXED)
-            document.getElementById("dl-stats-btn").addEventListener("click", async function() {
+            // TOMBOL DOWNLOAD FULL TEAM STATS DENGAN PAGINATION (FIXED SYNTAX)
+            document.getElementById("dl-stats-btn").addEventListener("click", async function() {{
                 const btn = this;
                 btn.innerText = "⏳"; btn.style.background = "#FBBF24";
                 
                 const container = window.parent.document.getElementById("hidden-stats-container");
                 
-                if(container) {
+                if(container) {{
                     const statCards = container.querySelectorAll('[id^="stats-"]');
                     
-                    for(let i=0; i<statCards.length; i++) {
+                    for(let i=0; i<statCards.length; i++) {{
                         const target = statCards[i];
                         
                         // 1. Trik Clone: Gandakan elemen agar bisa dirender nyata oleh DOM
@@ -424,11 +424,11 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                         await new Promise(r => setTimeout(r, 400)); 
                         
                         // 4. Render Clone-nya
-                        const canvas = await window.html2canvas(clone, { 
+                        const canvas = await window.html2canvas(clone, {{ 
                             useCORS: true, 
                             backgroundColor: "#0f172a", 
                             scale: 2 
-                        });
+                        }});
                         
                         // 5. Download hasilnya
                         let link = document.createElement("a"); 
@@ -439,11 +439,11 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                         
                         // 6. Bersihkan clone dari layar
                         window.parent.document.body.removeChild(clone);
-                    }
-                }
+                    }}
+                }}
                 
                 btn.innerText = "📊"; btn.style.background = "#8B5CF6";
-            });
+            }});
 
             document.getElementById("dl-btn").addEventListener("click", function() {{ 
                 const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
