@@ -4,6 +4,7 @@ import streamlit as st
 import re
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
+from core.stats import calculate_team_visual_stats
 
 def render_event_cards(event_data, search_query, nickname_map, photo_map, available_only=False):
     event_id = event_data.get('code', '')
@@ -288,6 +289,62 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     KODE_ADMIN_LIST = st.secrets.get("ADMIN_KEYS", [])
     if st.query_params.get("akses") in KODE_ADMIN_LIST:
         safe_name = file_name.replace('(', '').replace(')', '')
+        
+        # --- 1. RENDER HTML HIDDEN UNTUK 4 GAMBAR STATS X THREAD ---
+        team_stats = calculate_team_visual_stats(event_data, photo_map)
+        stats_html_buffer = '<div id="hidden-stats-container" style="display: none; position: absolute; top: -9999px;">'
+        
+        team_colors = {
+            "LOVE": "#EC4899",     # Pink
+            "DREAM": "#3B82F6",    # Blue
+            "PASSION": "#8B5CF6",  # Purple
+            "TRAINEE": "#10B981"   # Green
+        }
+        
+        for team, members_data in team_stats.items():
+            color = team_colors.get(team, "#10B981")
+            
+            stats_html_buffer += f"""
+            <div id="stats-{team}" style="width: 800px; background: #0f172a; padding: 40px; border-radius: 20px; font-family: 'Inter', sans-serif; color: white; position: relative; overflow: hidden; border: 2px solid {color}40;">
+                <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: {color}; filter: blur(100px); opacity: 0.3; border-radius: 50%;"></div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid {color}40; padding-bottom: 20px; margin-bottom: 30px;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 36px; font-weight: 800; color: {color};">TEAM {team}</h2>
+                        <p style="margin: 5px 0 0 0; font-size: 16px; opacity: 0.8; letter-spacing: 2px; font-weight: 600;">TOP 4 HIGHEST SOLD RATE</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <h3 style="margin: 0; font-size: 20px; font-weight: 800;">#EstrellaStats</h3>
+                        <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.6; font-weight: 600;">{waktu_sekarang}</p>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+            """
+            
+            for m in members_data:
+                proxy_url = f"https://wsrv.nl/?url={m['photo']}&w=150&output=webp" if m['photo'] else "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                rate = m['sold_rate']
+                stats_html_buffer += f"""
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+                        <div style="width: 100px; height: 100px; border-radius: 50%; background-image: url('{proxy_url}'); background-size: 130%; background-position: center 15%; margin: 0 auto 15px auto; border: 3px solid {color}; box-shadow: 0 5px 15px {color}40;"></div>
+                        <h4 style="margin: 0 0 10px 0; font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{m['name']}</h4>
+                        <div style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 10px;">
+                            <div style="font-size: 24px; font-weight: 800; color: {color};">{rate:.1f}%</div>
+                            <div style="font-size: 12px; opacity: 0.7; margin-top: 5px; font-weight: 600;">{m['sold']}/{m['total']} Sold</div>
+                        </div>
+                    </div>
+                """
+            
+            stats_html_buffer += """
+                </div>
+            </div>
+            """
+        
+        stats_html_buffer += '</div>'
+        st.markdown(stats_html_buffer, unsafe_allow_html=True)
+
+        # --- 2. JAVASCRIPT & TOMBOL ---
         components.html(f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
         <style>
@@ -296,12 +353,15 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 color: white; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 20px; cursor: pointer; 
                 display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); outline: none;
             }}
+            #dl-stats-btn {{ background: #8B5CF6; }}
+            #dl-stats-btn:hover {{ background: #7C3AED; box-shadow: 0 0 15px rgba(139, 92, 246, 0.6); }}
             #dl-btn {{ background: #10B981; }}
             #dl-btn:hover {{ background: #0D9488; box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }}
             #copy-btn {{ background: #3B82F6; }}
             #copy-btn:hover {{ background: #1D4ED8; box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); }}
         </style>
         
+        <button class="btn-action" id="dl-stats-btn" title="Download Top 4 Team Stats (For X Thread)" aria-label="Download Team Stats">📊</button>
         <button class="btn-action" id="copy-btn" title="Copy Image to Clipboard" aria-label="Copy infographic image to clipboard">📋</button>
         <button class="btn-action" id="dl-btn" title="Download Infographic Image" aria-label="Download infographic image">📸</button>
         
@@ -310,7 +370,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 const iframe = window.frameElement;
                 if (iframe) {{
                     iframe.style.position = 'fixed'; iframe.style.bottom = '30px'; iframe.style.right = '30px';
-                    iframe.style.width = '130px'; iframe.style.height = '65px'; iframe.style.zIndex = '999999'; iframe.style.border = 'none';
+                    iframe.style.width = '190px'; iframe.style.height = '65px'; iframe.style.zIndex = '999999'; iframe.style.border = 'none';
                 }}
             }} catch(e) {{}}
 
@@ -332,7 +392,36 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 target.style.padding = "0px"; target.style.backgroundColor = "transparent";
             }}
 
-            document.getElementById("dl-btn").addEventListener("click", function() {{
+            // TOMBOL DOWNLOAD 4 TIM STATS (BARU)
+            document.getElementById("dl-stats-btn").addEventListener("click", async function() {{
+                const btn = this;
+                btn.innerText = "⏳"; btn.style.background = "#FBBF24";
+                
+                const teams = ["LOVE", "DREAM", "PASSION", "TRAINEE"];
+                const container = window.parent.document.getElementById("hidden-stats-container");
+                
+                if(container) {{
+                    container.style.display = "block"; 
+                    
+                    for(let team of teams) {{
+                        const target = window.parent.document.getElementById("stats-" + team);
+                        if(target) {{
+                            // Beri jeda sedikit per gambar agar tidak crash
+                            await new Promise(r => setTimeout(r, 300));
+                            const canvas = await window.html2canvas(target, {{ useCORS: true, backgroundColor: "#0f172a", scale: 2 }});
+                            let link = document.createElement("a"); 
+                            link.download = `EstrellaStats_${team}.png`; 
+                            link.href = canvas.toDataURL("image/png"); 
+                            link.click();
+                        }}
+                    }}
+                    container.style.display = "none";
+                }}
+                
+                btn.innerText = "📊"; btn.style.background = "#8B5CF6";
+            }});
+
+            document.getElementById("dl-btn").addEventListener("click", function() {{ ... // (Kode dl-btn lama biarkan sama)
                 const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
                 if(target) {{
                     btn.innerText = "⏳"; btn.style.background = "#FBBF24";
@@ -345,6 +434,34 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                     }}, 150);
                 }}
             }});
+
+            document.getElementById("copy-btn").addEventListener("click", function() {{ ... // (Kode copy-btn lama biarkan sama)
+                const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
+                if(target) {{
+                    btn.innerText = "⏳"; btn.style.background = "#FBBF24";
+                    setTimeout(() => {{
+                        window.html2canvas(target, {{ useCORS: true, backgroundColor: target.dataset.themeBg, scale: 2 }}).then(canvas => {{
+                            kembalikanTarget(target, banner);
+                            canvas.toBlob(function(blob) {{
+                                try {{
+                                    navigator.clipboard.write([new ClipboardItem({{ "image/png": blob }})]).then(function() {{
+                                        btn.innerText = "✅"; btn.style.background = "#10B981"; 
+                                        setTimeout(() => {{ btn.innerText = "📋"; btn.style.background = "#3B82F6"; }}, 1500);
+                                    }}).catch(function(err) {{
+                                        btn.innerText = "❌"; btn.style.background = "#EF4444";
+                                        setTimeout(() => {{ btn.innerText = "📋"; btn.style.background = "#3B82F6"; }}, 1500);
+                                    }});
+                                }} catch (e) {{
+                                    btn.innerText = "❌"; btn.style.background = "#EF4444";
+                                    setTimeout(() => {{ btn.innerText = "📋"; btn.style.background = "#3B82F6"; }}, 1500);
+                                }}
+                            }}, "image/png");
+                        }});
+                    }}, 150);
+                }}
+            }});
+        </script>
+        """, height=70)
 
             document.getElementById("copy-btn").addEventListener("click", function() {{
                 const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
