@@ -189,13 +189,24 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             jalur_label = m.get("label", "-")
             
             if is_search_mode:
-                date_short = session_date_wib.strftime('%d/%m') if session_date_wib else ""
+                # PERBAIKAN: Fallback jika format tanggal API JKT48 hanya YYYY-MM-DD
+                if session_date_wib:
+                    date_short = session_date_wib.strftime('%d/%m')
+                else:
+                    raw_d = sesi.get('date', '')
+                    # Ekstrak manual dari YYYY-MM-DD menjadi DD/MM
+                    date_short = f"{raw_d[8:10]}/{raw_d[5:7]}" if len(raw_d) >= 10 else ""
+
                 sesi_short = sesi_label.replace("Session", "S.").replace("Sesi", "S.")
                 time_range = f"{sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
                 
-                # PERBAIKAN: Gunakan tag <br> agar teks turun ke bawah dan tidak nabrak badge
+                # Gunakan tag <br> agar teks turun ke bawah dan tidak nabrak badge
                 time_str = f"<br>({time_range})" if time_range else ""
-                jalur_label = f"{date_short} • {sesi_short}{time_str}<br>{jalur_label}"
+                
+                if date_short:
+                    jalur_label = f"{date_short} • {sesi_short}{time_str}<br>{jalur_label}"
+                else:
+                    jalur_label = f"{sesi_short}{time_str}<br>{jalur_label}"
             
             display_member = member_name.replace(' ', '&nbsp;')            
             # PERBAIKAN: Hapus .replace(' ', '&nbsp;') agar teks bisa wrap/turun otomatis
