@@ -45,16 +45,24 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         if raw_date:
             try:
                 clean_date = raw_date.split('.')[0].replace('Z', '')
-                session_date_wib = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+                if 'T' in clean_date:
+                    session_date_wib = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+                else:
+                    # PERBAIKAN 1: Tangkap format baru yang hanya YYYY-MM-DD
+                    session_date_wib = datetime.strptime(clean_date, "%Y-%m-%d")
             except:
                 pass
 
-        if session_date_wib and general_end_wib:
+        # PERBAIKAN 2: Logika deadline dibuat independen dari tanggal sesi
+        if general_end_wib:
+            # Jika waktu sekarang sudah melewati batas akhir penjualan event (General End)
             if now_wib > general_end_wib:
                 is_before_deadline = False
-            else:
+            # Jika belum melewati batas akhir event, cek batas penutupan hari H / Sesi
+            elif session_date_wib:
                 jam_tutup_harian = general_end_wib.time()
                 batas_penutupan_hari_h = datetime.combine(session_date_wib.date(), jam_tutup_harian)
+                
                 if now_wib > batas_penutupan_hari_h:
                     is_before_deadline = False
                     
