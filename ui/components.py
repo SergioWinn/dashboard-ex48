@@ -48,24 +48,26 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 if 'T' in clean_date:
                     session_date_wib = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
                 else:
-                    # PERBAIKAN 1: Tangkap format baru yang hanya YYYY-MM-DD
                     session_date_wib = datetime.strptime(clean_date, "%Y-%m-%d")
             except:
                 pass
 
-        # PERBAIKAN 2: Logika deadline dibuat independen dari tanggal sesi
         if general_end_wib:
-            # Jika waktu sekarang sudah melewati batas akhir penjualan event (General End)
+            # 1. Cek Kiamat (General End) - Misal lewat 2 Juli 09:00, tutup semua!
             if now_wib > general_end_wib:
                 is_before_deadline = False
-            # Jika belum melewati batas akhir event, cek batas penutupan hari H / Sesi
             elif session_date_wib:
+                # 2. Cek Penutupan Harian Otomatis
+                # Ambil jam dari API (bisa 07:00, bisa 09:00, dll)
                 jam_tutup_harian = general_end_wib.time()
+                # Gabungkan tanggal sesi (Misal 28 Juni) dengan jam tutup (09:00)
                 batas_penutupan_hari_h = datetime.combine(session_date_wib.date(), jam_tutup_harian)
                 
+                # Jika sekarang sudah lewat 28 Juni jam 09:00, status jadi CLOSED
                 if now_wib > batas_penutupan_hari_h:
                     is_before_deadline = False
                     
+                # 3. Pengaman Tambahan: Cek Jam Berakhir Sesi (Misal sesi selesai jam 14:00)
                 if is_before_deadline and sesi.get('end_time'):
                     try:
                         t_end = datetime.strptime(sesi.get('end_time'), "%H:%M:%S").time()
