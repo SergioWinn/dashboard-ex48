@@ -30,7 +30,25 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 3. STREAMLIT FRAGMENT: ISOLATED AUTO-REFRESH ---
+# --- PANEL VIP: CLOUDFLARE BYPASS ---
+KODE_ADMIN_LIST = st.secrets.get("ADMIN_KEYS", [])
+
+if st.query_params.get("akses") in KODE_ADMIN_LIST:
+    with st.sidebar:
+        st.markdown("### 🔐 VIP Bypass Panel")
+        st.caption("Inject Cloudflare Cookies to bypass Waiting Room.")
+        
+        with st.form("cookie_injector"):
+            cf_ua = st.text_input("User-Agent Browser", value=st.session_state.get("cf_ua", ""))
+            cf_cookie = st.text_area("Raw Cookie", value=st.session_state.get("cf_cookie", ""), placeholder="cf_clearance=abc123xxx; path=/;")
+            
+            if st.form_submit_button("💉 Inject Payload"):
+                st.session_state["cf_ua"] = cf_ua
+                st.session_state["cf_cookie"] = cf_cookie
+                st.success("Cookie Injected! Dashboard is now acting as your browser.")
+                st.rerun()
+# ===============================================
+
 # --- 3. STREAMLIT FRAGMENT: ISOLATED AUTO-REFRESH ---
 @st.fragment(run_every=5)
 def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, available_only):
