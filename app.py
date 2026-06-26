@@ -31,12 +31,23 @@ st.markdown(
 )
 
 # --- 3. STREAMLIT FRAGMENT: ISOLATED AUTO-REFRESH ---
+# --- 3. STREAMLIT FRAGMENT: ISOLATED AUTO-REFRESH ---
 @st.fragment(run_every=5)
 def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, available_only):
     fresh_event_data = fetch_exclusive_detail(event_code)
     
-    current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S')
-    st.caption(f"🔄 **Live Data - Last Updated:** {current_time_wib} WIB")
+    # --- CEK STATUS CLOUDFLARE WAITING ROOM ---
+    wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
+    
+    if not wr_info.get("is_live"):
+        st.warning(
+            f"⚠️ **JKT48 Server is currently in Cloudflare Waiting Room / Down.** "
+            f"Showing last known good data backup (Last Updated: {wr_info.get('time')})."
+        )
+    else:
+        current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S')
+        st.caption(f"🔄 **Live Data - Last Updated:** {current_time_wib} WIB")
+    # ------------------------------------------
     
     if not fresh_event_data:
         st.warning("⏳ Waiting for data sync update...")
