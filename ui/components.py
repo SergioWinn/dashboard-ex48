@@ -215,19 +215,19 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             total_slot_capacity = tickets_sold + current_quota
             sold_percentage = (tickets_sold / total_slot_capacity * 100) if total_slot_capacity > 0 else 0
             
-            # --- LOGIKA TEMA CARD TERPADU (CLOSED / SOLD OUT / LOW / AVAILABLE) ---
+           # --- LOGIKA TEMA CARD TERPADU (CLOSED / SOLD OUT / LOW / AVAILABLE) ---
             if is_event_closed or not is_before_deadline:
                 # TEMA CLOSED (Abu-abu mati mendominasi)
                 cls, btn_text = "sold", "CLOSED"
                 sold_percentage = 100
                 bar_color = "#555555"
-                badge_html = '<div class="c-badge" style="background-color: #555555; color: white;">CLOSED</div>'
+                badge_html = ""
             elif current_quota <= 0:
                 # TEMA SOLD OUT (Merah murni)
                 cls, btn_text = "sold", "SOLD&nbsp;OUT"
                 sold_percentage = 100
                 bar_color = "#EF4444"
-                badge_html = "" # Badge disembunyikan kalau sold out
+                badge_html = ""
             elif current_quota < warn_limit:
                 # TEMA LOW QUOTA (Kuning hati-hati)
                 cls, btn_text = "warn", f"{current_quota}&nbsp;LEFT"
