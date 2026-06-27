@@ -4,7 +4,17 @@ GLOBAL_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 html, body, .stApp { font-family: 'Inter', sans-serif; }
-.block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1400px; }
+.block-container { padding-top: 2rem; padding-bott/* Teks di dalam tombol */
+.c-prog-text { 
+    position: relative; 
+    z-index: 1; 
+    font-size: 11px; 
+    font-weight: 800; 
+    letter-spacing: 0.5px;
+    /* PENTING: Gunakan warna yang selalu terbaca di latar terang maupun gelap */
+    color: #ffffff; 
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
+}om: 2rem; max-width: 1400px; }
 
 /* Header & Badge */
 .ldp-header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid rgba(128,128,128,0.2); padding-bottom: 20px; }
@@ -82,8 +92,8 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     background-color: rgba(128,128,128,0.08); /* Beri sedikit fill abu-abu transparan */
 }
 .ldp-card.closed .c-photo { 
-    opacity: 0.9; /* Opacity dinaikkan supaya fotonya tidak transparan */
-    filter: grayscale(100%) contrast(85%); /* Cukup jadikan hitam putih dan sedikit redup */
+    opacity: 0.85; 
+    filter: saturate(30%); /* Kurangi warna, tapi jangan sampai pudar */
 }
 
 /* Foto Kabesha */
