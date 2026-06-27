@@ -72,6 +72,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     opacity: 0.35; /* Dibuat sangat transparan sehingga menyatu dengan background */
     filter: brightness(0.8) saturate(75%); /* Warnanya sedikit saja diturunkan biar tidak terlalu "nyala" */
 }
+.ldp-card.closed {border-bottom: 4px solid #555555; opacity: 0.8;}
 
 /* Foto Kabesha */
 .c-photo { 
