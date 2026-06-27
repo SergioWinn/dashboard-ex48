@@ -38,14 +38,15 @@ def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, a
     # --- CEK STATUS EVENT CLOSED ---
     if raw_close_date:
         try:
-            # Konversi waktu tutup (UTC ke WIB)
-            dt_close_wib = datetime.strptime(raw_close_date.split('.')[0].replace('Z', ''), "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+            # Karena format end_date dari sales_period biasanya sudah WIB (tanpa 'Z')
+            # Contoh: "2026-06-27T09:00:00"
+            dt_close_wib = datetime.strptime(raw_close_date, "%Y-%m-%dT%H:%M:%S")
             now_wib = datetime.utcnow() + timedelta(hours=7)
             
             # Jika jam saat ini sudah melebihi jam tutup
             if now_wib >= dt_close_wib:
-                st.error(f"🔴 **EVENT CLOSED** | Penjualan tiket web resmi telah ditutup pada {dt_close_wib.strftime('%d/%m/%Y %H:%M')} WIB. Angka di bawah adalah sisa kuota akhir yang tidak di-reset oleh sistem.")
-        except:
+                st.error(f"🔴 **EVENT CLOSED** | Penjualan tiket web resmi telah ditutup pada {dt_close_wib.strftime('%d/%m/%Y %H:%M')} WIB. Angka kuota di bawah ini tidak akan berkurang lagi.")
+        except Exception as e:
             pass
     # -------------------------------
     
@@ -159,7 +160,20 @@ if available_categories:
             available_only = st.toggle("🟢 Available Only", value=False)
             
     event_code = selected_event.get('code')
-    raw_close_date = selected_event.get('valid_date_to', '') # Ambil data penutupan event
+    
+    # --- LOGIKA BARU: Cari jam tutup dari array sales_period (Jalur General) ---
+    raw_close_date = None
+    sales_periods = selected_event.get('sales_period', [])
+    for sp in sales_periods:
+        if sp.get('label') == 'General':
+            raw_close_date = sp.get('end_date') # Ambil "2026-06-27T09:00:00"
+            break
+            
+    # Jika di sales_period tidak ada, coba fallback ke valid_date_to
+    if not raw_close_date and selected_event.get('valid_date_to'):
+        # Kita potong mili-detiknya agar formatnya sama-sama "%Y-%m-%dT%H:%M:%S"
+        raw_close_date = selected_event.get('valid_date_to').split('.')[0]
+    # -------------------------------------------------------------------------
     
     st.markdown(f"### {selected_event.get('title', 'Event')}")
     st.caption(f"**Category:** {selected_event.get('category', '-').replace('_', ' ')} | **Price:** IDR {selected_event.get('default_price', 0):,}")
