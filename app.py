@@ -35,21 +35,23 @@ st.markdown(
 def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, available_only, raw_close_date):
     fresh_event_data = fetch_exclusive_detail(event_code)
     
-    # --- CEK STATUS EVENT CLOSED ---
+    # --- 1. TENTUKAN STATUS EVENT CLOSED ---
+    is_event_closed = False
     if raw_close_date:
         try:
-            # Karena format end_date dari sales_period biasanya sudah WIB (tanpa 'Z')
-            # Contoh: "2026-06-27T09:00:00"
             dt_close_wib = datetime.strptime(raw_close_date, "%Y-%m-%dT%H:%M:%S")
             now_wib = datetime.utcnow() + timedelta(hours=7)
             
-            # Jika jam saat ini sudah melebihi jam tutup
             if now_wib >= dt_close_wib:
-                st.error(f"🔴 **EVENT CLOSED** | Penjualan tiket web resmi telah ditutup pada {dt_close_wib.strftime('%d/%m/%Y %H:%M')} WIB. Angka kuota di bawah ini tidak akan berkurang lagi.")
-        except Exception as e:
+                is_event_closed = True # Set jadi True jika sudah lewat jam tutup
+        except:
             pass
-    # -------------------------------
+    # ---------------------------------------
     
+    # --- 2. TAMPILKAN BANNER JIKA CLOSED ---
+    if is_event_closed:
+        st.error(f"🔴 **EVENT CLOSED** | Penjualan tiket web resmi telah ditutup. Sisa kuota di bawah ini adalah rekaman terakhir dan tidak akan berkurang lagi.")
+        
     # --- CEK STATUS CLOUDFLARE WAITING ROOM ---
     wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
     
@@ -89,7 +91,8 @@ def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, a
         with col_m3:
             st.metric(label="🔥 Sold Rate", value=f"{sold_rate:.1f}%")
             
-    render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only)
+    # --- 3. KIRIM is_event_closed KE KOMPONEN CARD ---
+    render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only, is_event_closed)
 
 
 # --- 4. MAIN LAYOUT & DISCOVERY ---
