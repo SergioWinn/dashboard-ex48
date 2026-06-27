@@ -168,14 +168,16 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card.sold .c-prog-fill { background: rgba(239,68,68, 0.8); }
 .ldp-card.closed .c-prog-fill { background: rgba(85,85,85, 0.8); }
 
+/* Teks di dalam tombol */
 .c-prog-text { 
     position: relative; 
     z-index: 1; 
     font-size: 11px; 
     font-weight: 800; 
-    color: #fff; 
-    letter-spacing: 0.5px; 
-    text-shadow: 0 1px 3px rgba(0,0,0,0.8); 
+    letter-spacing: 0.5px;
+    /* PENTING: Gunakan warna yang selalu terbaca di latar terang maupun gelap */
+    color: #ffffff; 
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
 }
 
 /* --- SHAREABLE BANNER --- */
