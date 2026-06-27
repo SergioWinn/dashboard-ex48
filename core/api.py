@@ -59,13 +59,11 @@ def fetch_exclusive_detail(code):
 
     try:
         r = requests.get(url, headers=HEADERS, timeout=5)
-        # Jika sukses (Status 200) dan isinya benar-benar data penjualan (JSON)
         if r.status_code == 200:
             res_json = r.json()
             data = res_json.get('data')
             
             if data:
-                # 1. Simpan ke JSON Lokal sebagai Cache Cadangan
                 cache_payload = {
                     "last_updated": waktu_sekarang,
                     "data": data
@@ -73,21 +71,17 @@ def fetch_exclusive_detail(code):
                 with open(cache_file, "w") as f:
                     json.dump(cache_payload, f)
                 
-                # 2. Set status di session_state bahwa ini data LIVE
                 st.session_state[f"wr_status_{code}"] = {"is_live": True, "time": waktu_sekarang}
                 return data
                 
     except Exception as e:
-        # Pemicu error bisa karena Timeout, Gagal Parsing JSON (karena isi HTML Cloudflare WR), atau Server Down
         pass
 
-    # --- FALLBACK MECHANISM (Jika blok TRY di atas gagal/Error) ---
     if os.path.exists(cache_file):
         try:
             with open(cache_file, "r") as f:
                 cache_payload = json.load(f)
             
-            # Set status di session_state bahwa dashboard sedang menggunakan data CACHE akibat WR
             st.session_state[f"wr_status_{code}"] = {
                 "is_live": False, 
                 "time": cache_payload.get("last_updated", "Unknown")
@@ -96,6 +90,5 @@ def fetch_exclusive_detail(code):
         except:
             pass
 
-    # Jika benar-benar tidak ada cache sama sekali
     st.session_state[f"wr_status_{code}"] = {"is_live": False, "time": "No Cache Available"}
     return None
