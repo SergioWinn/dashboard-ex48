@@ -69,17 +69,21 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card.warn { border-bottom: 5px solid #FBBF24; animation: glow 2s infinite; }
 
 /* TEMA SOLD OUT */
-.ldp-card.sold { border-bottom: 5px solid #EF4444; opacity: 0.8; } 
+.ldp-card.sold { border-bottom: 5px solid #EF4444; opacity: 0.9; } 
 .ldp-card.sold .c-photo { 
-    opacity: 0.35; 
-    filter: brightness(0.8) saturate(75%); 
+    opacity: 0.85; 
+    filter: saturate(30%); /* Kurangi warna, tapi jangan sampai pudar */
 }
 
-/* TEMA CLOSED (Baru - Efek Grayscale) */
-.ldp-card.closed { border-bottom: 5px solid #555555; opacity: 0.65; }
+/* TEMA CLOSED (Perbaikan Light/Dark Mode) */
+.ldp-card.closed { 
+    border-bottom: 5px solid #888888; 
+    opacity: 0.85; 
+    background-color: rgba(128,128,128,0.08); /* Beri sedikit fill abu-abu transparan */
+}
 .ldp-card.closed .c-photo { 
-    opacity: 0.3; 
-    filter: grayscale(100%) brightness(0.7); 
+    opacity: 0.9; /* Opacity dinaikkan supaya fotonya tidak transparan */
+    filter: grayscale(100%) contrast(85%); /* Cukup jadikan hitam putih dan sedikit redup */
 }
 
 /* Foto Kabesha */
