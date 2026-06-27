@@ -177,7 +177,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     letter-spacing: 0.5px;
     /* PENTING: Gunakan warna yang selalu terbaca di latar terang maupun gelap */
     color: #ffffff; 
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5); 
 }
 
 /* --- SHAREABLE BANNER --- */
