@@ -67,12 +67,20 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 /* Border Status Tetap Ada Sebagai Aksen */
 .ldp-card.avail { border-bottom: 5px solid #10B981; }
 .ldp-card.warn { border-bottom: 5px solid #FBBF24; animation: glow 2s infinite; }
+
+/* TEMA SOLD OUT */
 .ldp-card.sold { border-bottom: 5px solid #EF4444; opacity: 0.8; } 
 .ldp-card.sold .c-photo { 
-    opacity: 0.35; /* Dibuat sangat transparan sehingga menyatu dengan background */
-    filter: brightness(0.8) saturate(75%); /* Warnanya sedikit saja diturunkan biar tidak terlalu "nyala" */
+    opacity: 0.35; 
+    filter: brightness(0.8) saturate(75%); 
 }
-.ldp-card.closed {border-bottom: 4px solid #555555; opacity: 0.8;}
+
+/* TEMA CLOSED (Baru - Efek Grayscale) */
+.ldp-card.closed { border-bottom: 5px solid #555555; opacity: 0.65; }
+.ldp-card.closed .c-photo { 
+    opacity: 0.3; 
+    filter: grayscale(100%) brightness(0.7); 
+}
 
 /* Foto Kabesha */
 .c-photo { 
@@ -154,6 +162,7 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card.avail .c-prog-fill { background: rgba(16,185,129, 0.8); }
 .ldp-card.warn .c-prog-fill { background: rgba(217,119,6, 0.8); }
 .ldp-card.sold .c-prog-fill { background: rgba(239,68,68, 0.8); }
+.ldp-card.closed .c-prog-fill { background: rgba(85,85,85, 0.8); }
 
 .c-prog-text { 
     position: relative; 
@@ -177,7 +186,6 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     box-shadow: 0 4px 15px rgba(16,185,129,0.2);
     margin-bottom: 15px;
 }
-/* Tambahkan white-space: pre-wrap agar spasi dikunci mati dan tidak ditelan canvas */
 .sb-left h3 { margin: 0 0 4px 0; font-size: 14px; font-weight: 800; white-space: pre-wrap; }
 .sb-left p { margin: 0; font-size: 11px; opacity: 0.9; font-weight: 600; white-space: pre-wrap; }
 .sb-right { text-align: right; }
