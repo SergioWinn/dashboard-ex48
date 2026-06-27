@@ -32,8 +32,22 @@ st.markdown(
 
 # --- 3. STREAMLIT FRAGMENT: ISOLATED AUTO-REFRESH ---
 @st.fragment(run_every=5)
-def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, available_only):
+def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, available_only, raw_close_date):
     fresh_event_data = fetch_exclusive_detail(event_code)
+    
+    # --- CEK STATUS EVENT CLOSED ---
+    if raw_close_date:
+        try:
+            # Konversi waktu tutup (UTC ke WIB)
+            dt_close_wib = datetime.strptime(raw_close_date.split('.')[0].replace('Z', ''), "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+            now_wib = datetime.utcnow() + timedelta(hours=7)
+            
+            # Jika jam saat ini sudah melebihi jam tutup
+            if now_wib >= dt_close_wib:
+                st.error(f"🔴 **EVENT CLOSED** | Penjualan tiket web resmi telah ditutup pada {dt_close_wib.strftime('%d/%m/%Y %H:%M')} WIB. Angka di bawah adalah sisa kuota akhir yang tidak di-reset oleh sistem.")
+        except:
+            pass
+    # -------------------------------
     
     # --- CEK STATUS CLOUDFLARE WAITING ROOM ---
     wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
@@ -145,12 +159,13 @@ if available_categories:
             available_only = st.toggle("🟢 Available Only", value=False)
             
     event_code = selected_event.get('code')
+    raw_close_date = selected_event.get('valid_date_to', '') # Ambil data penutupan event
     
     st.markdown(f"### {selected_event.get('title', 'Event')}")
-    # Mengubah format mata uang dari Rp menjadi IDR standar internasional
     st.caption(f"**Category:** {selected_event.get('category', '-').replace('_', ' ')} | **Price:** IDR {selected_event.get('default_price', 0):,}")
     
-    live_dashboard_fragment(event_code, global_query, nickname_map, photo_map, available_only)
+    # Kirim raw_close_date ke dalam fragment
+    live_dashboard_fragment(event_code, global_query, nickname_map, photo_map, available_only, raw_close_date)
     
 else:
     st.error("No active Exclusive events found or failed to fetch data.")
