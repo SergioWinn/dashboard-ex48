@@ -47,10 +47,6 @@ def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, a
         except:
             pass
     # ---------------------------------------
-    
-    # --- 2. TAMPILKAN BANNER JIKA CLOSED ---
-    if is_event_closed:
-        st.error(f"🔴 **EVENT CLOSED** | Penjualan tiket web resmi telah ditutup. Sisa kuota di bawah ini adalah rekaman terakhir dan tidak akan berkurang lagi.")
         
     # --- CEK STATUS CLOUDFLARE WAITING ROOM ---
     wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
@@ -93,7 +89,6 @@ def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, a
             
     # --- 3. KIRIM is_event_closed KE KOMPONEN CARD ---
     render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only, is_event_closed)
-
 
 # --- 4. MAIN LAYOUT & DISCOVERY ---
 nickname_map, photo_map = get_member_database()
