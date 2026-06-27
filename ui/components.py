@@ -5,7 +5,10 @@ import re
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 
-def render_event_cards(event_data, search_query, nickname_map, photo_map, available_only=False):
+def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only, is_event_closed=False):
+    # PERBAIKAN BUG: Samakan variabel parameter dengan yang dipakai di dalam fungsi
+    event_data = fresh_event_data 
+    
     event_id = event_data.get('code', '')
     category = event_data.get('category', 'GENERAL')
     purchase_link = f"https://jkt48.com/purchase/exclusive?code={event_id}"
@@ -53,21 +56,15 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 pass
 
         if general_end_wib:
-            # 1. Cek Kiamat (General End) - Misal lewat 2 Juli 09:00, tutup semua!
             if now_wib > general_end_wib:
                 is_before_deadline = False
             elif session_date_wib:
-                # 2. Cek Penutupan Harian Otomatis
-                # Ambil jam dari API (bisa 07:00, bisa 09:00, dll)
                 jam_tutup_harian = general_end_wib.time()
-                # Gabungkan tanggal sesi (Misal 28 Juni) dengan jam tutup (09:00)
                 batas_penutupan_hari_h = datetime.combine(session_date_wib.date(), jam_tutup_harian)
                 
-                # Jika sekarang sudah lewat 28 Juni jam 09:00, status jadi CLOSED
                 if now_wib > batas_penutupan_hari_h:
                     is_before_deadline = False
                     
-                # 3. Pengaman Tambahan: Cek Jam Berakhir Sesi (Misal sesi selesai jam 14:00)
                 if is_before_deadline and sesi.get('end_time'):
                     try:
                         t_end = datetime.strptime(sesi.get('end_time'), "%H:%M:%S").time()
@@ -87,7 +84,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             ]
             
         if available_only:
-            if not is_before_deadline:
+            # Jika mode available dihidupkan, dan event tutup, langsung sembunyikan semua
+            if not is_before_deadline or is_event_closed:
                 continue
             members = [m for m in members if m.get('available_quota', 0) > 0]
 
@@ -146,7 +144,6 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
     waktu_sekarang = now_dt.strftime('%d/%m/%Y %H:%M WIB')
     waktu_save = now_dt.strftime('%d%m%Y_%H%M') 
     
-    # Force uppercase langsung dari Python agar html2canvas tidak error baca font
     judul_event = event_data.get('title', 'JKT48 Exclusive Event').upper()
     safe_event_code = event_id if event_id else "EVENT"
     
@@ -159,7 +156,6 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         safe_date = selected_date.split(' ')[0].replace('/', '') 
         file_name = f"Quota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
 
-    # Gunakan spasi normal, CSS pre-wrap yang akan menjaganya
     banner_html = f"""
     <div id="share-banner" class="share-banner" style="display: none;">
         <div class="sb-left">
@@ -184,7 +180,6 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
         session_date_wib = sesi['session_date_wib']
 
         raw_label = sesi.get('label', 'Session')
-        # Otomatis translate kata "Sesi 1" dari API pusat menjadi "Session 1"
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip().replace("Sesi", "Session")
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
         
@@ -199,18 +194,14 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             jalur_label = m.get("label", "-")
             
             if is_search_mode:
-                # PERBAIKAN: Fallback jika format tanggal API JKT48 hanya YYYY-MM-DD
                 if session_date_wib:
                     date_short = session_date_wib.strftime('%d/%m')
                 else:
                     raw_d = sesi.get('date', '')
-                    # Ekstrak manual dari YYYY-MM-DD menjadi DD/MM
                     date_short = f"{raw_d[8:10]}/{raw_d[5:7]}" if len(raw_d) >= 10 else ""
 
                 sesi_short = sesi_label.replace("Session", "S.").replace("Sesi", "S.")
                 time_range = f"{sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
-                
-                # Gunakan tag <br> agar teks turun ke bawah dan tidak nabrak badge
                 time_str = f"<br>({time_range})" if time_range else ""
                 
                 if date_short:
@@ -219,28 +210,35 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                     jalur_label = f"{sesi_short}{time_str}<br>{jalur_label}"
             
             display_member = member_name.replace(' ', '&nbsp;')            
-            # PERBAIKAN: Hapus .replace(' ', '&nbsp;') agar teks bisa wrap/turun otomatis
             display_jalur = jalur_label
             
             total_slot_capacity = tickets_sold + current_quota
             sold_percentage = (tickets_sold / total_slot_capacity * 100) if total_slot_capacity > 0 else 0
             
-            is_sold_out = False
-            if not is_before_deadline:
+            # --- LOGIKA TEMA CARD TERPADU (CLOSED / SOLD OUT / LOW / AVAILABLE) ---
+            if is_event_closed or not is_before_deadline:
+                # TEMA CLOSED (Abu-abu mati mendominasi)
                 cls, btn_text = "sold", "CLOSED"
-                bar_color = "#EF4444"
-                is_sold_out = True
+                sold_percentage = 100
+                bar_color = "#555555"
+                badge_html = '<div class="c-badge" style="background-color: #555555; color: white;">CLOSED</div>'
             elif current_quota <= 0:
+                # TEMA SOLD OUT (Merah murni)
                 cls, btn_text = "sold", "SOLD&nbsp;OUT"
                 sold_percentage = 100
                 bar_color = "#EF4444"
-                is_sold_out = True
+                badge_html = "" # Badge disembunyikan kalau sold out
             elif current_quota < warn_limit:
+                # TEMA LOW QUOTA (Kuning hati-hati)
                 cls, btn_text = "warn", f"{current_quota}&nbsp;LEFT"
                 bar_color = "#FBBF24"
+                badge_html = '<div class="c-badge" style="background-color: #FBBF24; color: black;">LOW</div>'
             else:
+                # TEMA AVAILABLE (Hijau normal)
                 cls, btn_text = "avail", f"{current_quota}&nbsp;LEFT"
                 bar_color = "#10B981"
+                badge_html = '<div class="c-badge">AVAILABLE</div>'
+            # ----------------------------------------------------------------------
 
             safe_name_img = member_name.strip().lower()
             raw_photo_url = photo_map.get(safe_name_img, "")
@@ -251,16 +249,7 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
                 proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                 
             img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" role="img" aria-label="{member_name} JKT48 Photo"></div>'
-                        
-            if is_sold_out:
-                badge_html = "" 
-            elif current_quota < warn_limit:
-                badge_text = "LOW"
-                badge_html = f'<div class="c-badge">{badge_text}</div>'
-            else:
-                badge_text = "AVAILABLE"
-                badge_html = f'<div class="c-badge">{badge_text}</div>'
-                                
+                                        
             combined_ui = f"""
             <div class="c-stats">
                 <span>Sold:&nbsp;<b>{tickets_sold}</b></span>
@@ -272,7 +261,8 @@ def render_event_cards(event_data, search_query, nickname_map, photo_map, availa
             """
             
             card_html = ""
-            if current_quota <= 0 or not is_before_deadline: 
+            # Jika sudah habis ATAU lewat deadline sesi ATAU event tutup total, matikan link <a>
+            if current_quota <= 0 or not is_before_deadline or is_event_closed: 
                 card_html += (
                     f'<div class="ldp-card {cls}">'
                     f'{badge_html}'
