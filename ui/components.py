@@ -218,7 +218,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
            # --- LOGIKA TEMA CARD TERPADU (CLOSED / SOLD OUT / LOW / AVAILABLE) ---
             if is_event_closed or not is_before_deadline:
                 # TEMA CLOSED (Abu-abu mati mendominasi)
-                cls, btn_text = "sold", "CLOSED"
+                cls, btn_text = "closed", "CLOSED"
                 sold_percentage = 100
                 bar_color = "#555555"
                 badge_html = ""
