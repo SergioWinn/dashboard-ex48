@@ -23,15 +23,23 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
     now_wib = datetime.utcnow() + timedelta(hours=7)
     general_end_wib = None
     
+    # --- PERBAIKAN LOGIKA WAKTU TUTUP ---
     for period in event_data.get('sales_period', []):
         if not period.get('is_ofc_only', False) or period.get('label') == 'General':
             ed = period.get('end_date')
             if ed:
                 try:
-                    clean_ed = ed.split('.')[0].replace('Z', '')
-                    general_end_wib = datetime.strptime(clean_ed, "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+                    clean_ed = ed.split('.')[0]
+                    if 'Z' in ed:
+                        # Kalau ada Z berarti beneran UTC, baru ditambah 7 jam
+                        general_end_wib = datetime.strptime(clean_ed.replace('Z', ''), "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+                    else:
+                        # Data dari API JKT48 untuk sales_period sudah WIB (tanpa 'Z')
+                        # Jadi TIDAK PERLU ditambah 7 jam lagi
+                        general_end_wib = datetime.strptime(clean_ed, "%Y-%m-%dT%H:%M:%S")
                 except:
                     pass
+    # ------------------------------------
 
     matched_full_names = set()
     if search_query:
