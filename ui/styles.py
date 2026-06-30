@@ -84,6 +84,12 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     opacity: 0.85; 
     filter: saturate(30%); /* Kurangi warna, tapi jangan sampai pudar */
 }
+.ldp-card.sold .c-photo::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255, 255, 255, 0.35); /* Lapisan pudar */
+}
 
 /* TEMA CLOSED (Perbaikan Light/Dark Mode) */
 .ldp-card.closed { 
@@ -94,6 +100,12 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 .ldp-card.closed .c-photo { 
     opacity: 0.85; 
     filter: saturate(30%); /* Kurangi warna, tapi jangan sampai pudar */
+}
+.ldp-card.closed .c-photo::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255, 255, 255, 0.35); /* Lapisan pudar */
 }
 
 /* Foto Kabesha */
@@ -109,6 +121,8 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
     box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
     background-color: #ffffff; 
     display: block;
+    position: relative;
+    overflow: hidden;
 }
 .c-jalur { 
     font-size: 10px; 
