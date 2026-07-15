@@ -122,7 +122,7 @@ for ev in active_events:
             
     dropdown_label = f"{open_date_str}{title}"
     ev_info = {"label": dropdown_label, "data": ev}
-    
+
     if cat == "DIGITAL_PHOTOBOOK":
         cat_label = "📱 Video Call"
     elif cat == "TWO_SHOT":
@@ -131,25 +131,31 @@ for ev in active_events:
         cat_label = "🤝 Meet & Greet"
     else:
         cat_label = "🎟️ Others"
-        
+
     categories_dict.setdefault(cat_label, []).append(ev_info)
 
-available_categories = {k: v for k, v in categories_dict.items() if len(v) > 0}
+available_categories = dict(sorted(
+    categories_dict.items(),
+    key=lambda item: max(
+        event["data"].get('valid_date_from', '') for event in item[1]
+    ),
+    reverse=True,
+))
 
 if available_categories:
     with st.container(border=True):
         col_cat, col_ev, col_search, col_toggle = st.columns([1.3, 2.5, 1.2, 1.2])
-        
+
         with col_cat:
             selected_cat = st.selectbox("🎯 Select Category:", list(available_categories.keys()))
-            
+
         with col_ev:
             events_in_cat = available_categories[selected_cat]
             event_labels = [e["label"] for e in events_in_cat]
             selected_event_label = st.selectbox("📌 Select JKT48 Event:", event_labels)
-            
+
             selected_event = next(e["data"] for e in events_in_cat if e["label"] == selected_event_label)
-            
+
         with col_search:
             global_query = st.text_input("🔍 Search Name/Nickname...", placeholder="Type Michie, Gracie...").lower().strip()
             
