@@ -4,17 +4,41 @@ GLOBAL_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 html, body, .stApp { font-family: 'Inter', sans-serif; }
-.block-container { padding-top: 2rem; padding-bott/* Teks di dalam tombol */
-.c-prog-text { 
-    position: relative; 
-    z-index: 1; 
-    font-size: 11px; 
-    font-weight: 800; 
-    letter-spacing: 0.5px;
-    /* PENTING: Gunakan warna yang selalu terbaca di latar terang maupun gelap */
-    color: #ffffff; 
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
-}om: 2rem; max-width: 1400px; }
+.block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1400px; }
+
+/* Filter controls: four columns on desktop, 2x2 on tablet, stacked on mobile. */
+@media (min-width: 40.0625rem) and (max-width: 64rem) {
+    .st-key-event_filters [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .st-key-event_filters [data-testid="stColumn"] {
+        width: 100% !important;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 40rem) {
+    .st-key-event_filters [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.75rem;
+    }
+    .st-key-event_filters [data-testid="stColumn"] {
+        width: 100% !important;
+        min-width: 0;
+    }
+}
+
+/* Horizontal date choices wrap instead of overflowing narrow screens. */
+div[class*="st-key-filter_date_"] [role="radiogroup"] {
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+}
+div[class*="st-key-filter_date_"] [role="radiogroup"] label {
+    white-space: nowrap;
+}
 
 /* Header & Badge */
 .ldp-header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid rgba(128,128,128,0.2); padding-bottom: 20px; }
@@ -140,9 +164,9 @@ a.badge-link { text-decoration: none !important; display: block; margin-top: aut
 }
 .c-member { 
     font-weight: 700; font-size: 15px; line-height: 1.2; margin-bottom: 8px; 
-    height: 2.4em; width: 100%;
+    height: 2.4em; width: 100%; min-width: 0;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
-    overflow: hidden; text-overflow: ellipsis; 
+    overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere;
 }
 
 /* --- SMART PROGRESS BUTTON --- */

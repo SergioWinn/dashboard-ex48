@@ -11,3 +11,4 @@ __pycache__/
 
 # Streamlit
 .streamlit/
+cache_exclusive_*.json

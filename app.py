@@ -143,8 +143,11 @@ available_categories = dict(sorted(
 ))
 
 if available_categories:
-    with st.container(border=True):
-        col_cat, col_ev, col_search, col_toggle = st.columns([1.3, 2.5, 1.2, 1.2])
+    with st.container(border=True, key="event_filters"):
+        col_cat, col_ev, col_search, col_toggle = st.columns(
+            [1.3, 2.5, 1.2, 1.2],
+            vertical_alignment="bottom",
+        )
 
         with col_cat:
             selected_cat = st.selectbox("🎯 Select Category:", list(available_categories.keys()))
@@ -160,7 +163,6 @@ if available_categories:
             global_query = st.text_input("🔍 Search Name/Nickname...", placeholder="Type Michie, Gracie...").lower().strip()
             
         with col_toggle:
-            st.write("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True) 
             available_only = st.toggle("🟢 Available Only", value=False)
             
     event_code = selected_event.get('code')
