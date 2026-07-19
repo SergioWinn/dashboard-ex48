@@ -267,7 +267,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             raw_photo_url = str(raw_photo_value) if raw_photo_value else ""
             
             if raw_photo_url:
-                proxy_url = f"https://wsrv.nl/?url={quote(raw_photo_url, safe='')}&w=180&h=180&fit=cover&output=webp"
+                proxy_url = f"https://wsrv.nl/?url={quote(raw_photo_url, safe='')}&w=180&h=180&fit=cover&a=top&output=webp"
             else:
                 proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
 
@@ -343,16 +343,13 @@ def render_share_controls(storage_key):
         .btn-action:active { transform: translateY(1px); }
         .btn-action:focus-visible { outline: 3px solid white; outline-offset: 2px; }
         .btn-action:disabled { cursor: wait; opacity: .75; }
-        #copy-btn { background: var(--blue); }
-        #select-btn { background: var(--green); }
+        #share-btn { background: var(--green); }
         @media (hover: hover) and (pointer: fine) {
-            #copy-btn:hover { background: var(--blue-dark); transform: translateY(-2px); }
-            #select-btn:hover { background: var(--green-dark); transform: translateY(-2px); }
+            #share-btn:hover { background: var(--green-dark); transform: translateY(-2px); }
         }
         @media (prefers-reduced-motion: reduce) { .btn-action { transition: none; } }
     </style>
-    <button class="btn-action" id="copy-btn" title="Copy selected cards" aria-label="Copy selected cards to clipboard"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button>
-    <button class="btn-action" id="select-btn" title="Select sessions and members" aria-label="Select sessions and members"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"></path><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"></path></svg></button>
+    <button class="btn-action" id="share-btn" title="Select and copy cards" aria-label="Select sessions and members, then copy"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path><path d="m11 13 1.5 1.5L16 11"></path></svg></button>
     <script>
         const storageKey = "__STORAGE_KEY__";
         let selectedSessions = new Set();
@@ -362,8 +359,6 @@ def render_share_controls(storage_key):
         let resetTimer = null;
         let selectionInitialized = false;
         let activeCaptureWrapper = null;
-        const copyButton = document.getElementById("copy-btn");
-        const copyIdleContent = copyButton.innerHTML;
 
         try {
             const iframe = window.frameElement;
@@ -371,7 +366,7 @@ def render_share_controls(storage_key):
                 iframe.style.position = "fixed";
                 iframe.style.bottom = "calc(16px + env(safe-area-inset-bottom, 0px))";
                 iframe.style.right = "calc(16px + env(safe-area-inset-right, 0px))";
-                iframe.style.width = "120px";
+                iframe.style.width = "60px";
                 iframe.style.height = "60px";
                 iframe.style.zIndex = "1000";
                 iframe.style.border = "none";
@@ -422,7 +417,7 @@ def render_share_controls(storage_key):
         dialog.id = "share-selection-dialog";
         dialog.innerHTML = `
             <style>
-                #share-selection-dialog { --dialog-bg: #111827; --dialog-surface: #1F2937; --dialog-rule: #374151; --dialog-ink: #F9FAFB; --dialog-ink-muted: #D1D5DB; --dialog-accent: #6EE7B7; --dialog-accent-fill: #10B981; --dialog-accent-ink: #052E25; --dialog-backdrop: rgba(0,0,0,.62); --dialog-shadow: rgba(0,0,0,.45); --dialog-font: Inter, system-ui, sans-serif; position: fixed; inset: 0; width: min(680px, calc(100% - 24px)); height: fit-content; max-height: min(720px, calc(100dvh - 24px)); margin: auto; padding: 0; border: 0; border-radius: 12px; background: var(--dialog-bg); color: var(--dialog-ink); font-family: var(--dialog-font); box-shadow: 0 12px 32px var(--dialog-shadow); }
+                #share-selection-dialog { --dialog-bg: #111827; --dialog-surface: #1F2937; --dialog-rule: #374151; --dialog-ink: #F9FAFB; --dialog-ink-muted: #D1D5DB; --dialog-accent: #6EE7B7; --dialog-accent-fill: #10B981; --dialog-accent-strong: #047857; --dialog-accent-ink: #052E25; --dialog-warning: #A16207; --dialog-error: #B91C1C; --dialog-backdrop: rgba(0,0,0,.62); --dialog-shadow: rgba(0,0,0,.45); --dialog-font: Inter, system-ui, sans-serif; position: fixed; inset: 0; width: min(680px, calc(100% - 24px)); height: fit-content; max-height: min(720px, calc(100dvh - 24px)); margin: auto; padding: 0; border: 0; border-radius: 12px; background: var(--dialog-bg); color: var(--dialog-ink); font-family: var(--dialog-font); box-shadow: 0 12px 32px var(--dialog-shadow); }
                 #share-selection-dialog::backdrop { background: var(--dialog-backdrop); }
                 .share-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--dialog-rule); }
                 .share-picker-head h2 { margin: 0; font-size: 18px; }
@@ -439,7 +434,10 @@ def render_share_controls(storage_key):
                 .share-picker-item input { margin-top: 2px; accent-color: var(--dialog-accent-fill); }
                 .share-picker-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 18px; border-top: 1px solid var(--dialog-rule); }
                 #share-picker-count { color: var(--dialog-ink-muted); font-size: 12px; }
-                #share-picker-done { min-height: 44px; border: 0; border-radius: 8px; background: var(--dialog-accent-fill); color: var(--dialog-accent-ink); padding: 9px 18px; font-weight: 800; cursor: pointer; }
+                #share-picker-copy { min-width: 128px; min-height: 44px; border: 0; border-radius: 8px; background: var(--dialog-accent-fill); color: var(--dialog-accent-ink); padding: 9px 18px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+                #share-picker-copy[data-state="loading"] { background: var(--dialog-warning); color: var(--dialog-ink); cursor: wait; }
+                #share-picker-copy[data-state="success"] { background: var(--dialog-accent-strong); color: var(--dialog-ink); }
+                #share-picker-copy[data-state="error"] { background: var(--dialog-error); color: var(--dialog-ink); }
                 #share-selection-dialog button:focus-visible, #share-selection-dialog input:focus-visible { outline: 3px solid var(--dialog-accent); outline-offset: 2px; }
                 @media (max-width: 600px) {
                     .share-picker-head { padding: 14px 14px 10px; }
@@ -462,7 +460,7 @@ def render_share_controls(storage_key):
                     <div class="share-picker-list" id="share-member-list"></div>
                 </section>
             </div>
-            <div class="share-picker-foot"><span id="share-picker-count"></span><button id="share-picker-done">Done</button></div>`;
+            <div class="share-picker-foot"><span id="share-picker-count"></span><button id="share-picker-copy" data-state="idle">Copy selected</button></div>`;
         window.parent.document.body.appendChild(dialog);
         window.addEventListener("unload", () => {
             dialog.remove();
@@ -471,6 +469,18 @@ def render_share_controls(storage_key):
 
         function updateCount() {
             dialog.querySelector("#share-picker-count").textContent = `${selectedSessions.size} session(s) · ${selectedMembers.size} member(s)`;
+            const copyAction = dialog.querySelector("#share-picker-copy");
+            if (copyAction.dataset.state === "idle") {
+                const canCopy = hasSelectedCards();
+                copyAction.textContent = canCopy ? "Copy selected" : "Select items";
+                copyAction.disabled = !canCopy;
+            }
+        }
+
+        function hasSelectedCards() {
+            return [...window.parent.document.querySelectorAll("#laporan-container .ldp-card[data-share-session]")].some(card => (
+                selectedSessions.has(card.dataset.shareSession) && selectedMembers.has(card.dataset.shareMember)
+            ));
         }
 
         function renderList(containerId, items, selection) {
@@ -509,19 +519,20 @@ def render_share_controls(storage_key):
             renderPicker();
         }));
         dialog.querySelector(".share-picker-close").addEventListener("click", () => dialog.close());
-        dialog.querySelector("#share-picker-done").addEventListener("click", () => dialog.close());
         dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
 
-        document.getElementById("select-btn").addEventListener("click", () => {
+        function openPicker() {
             refreshData();
             renderPicker();
-            dialog.showModal();
+            if (!dialog.open) dialog.showModal();
             requestAnimationFrame(() => dialog.querySelector("input")?.focus());
-        });
+        }
+
+        document.getElementById("share-btn").addEventListener("click", openPicker);
         if (reopenDialog) {
             refreshData();
             renderPicker();
-            dialog.showModal();
+            if (!dialog.open) dialog.showModal();
         }
 
         function getCaptureBackground(source) {
@@ -538,7 +549,7 @@ def render_share_controls(storage_key):
             refreshData();
             if (!selectedSessions.size || !selectedMembers.size) {
                 renderPicker();
-                dialog.showModal();
+                if (!dialog.open) dialog.showModal();
                 requestAnimationFrame(() => dialog.querySelector("input")?.focus());
                 return null;
             }
@@ -555,7 +566,7 @@ def render_share_controls(storage_key):
             const hasSelectedCard = [...target.querySelectorAll(".ldp-card[data-share-session]")].some(card => card.style.display !== "none");
             if (!hasSelectedCard) {
                 renderPicker();
-                dialog.showModal();
+                if (!dialog.open) dialog.showModal();
                 requestAnimationFrame(() => dialog.querySelector("input")?.focus());
                 return null;
             }
@@ -587,18 +598,18 @@ def render_share_controls(storage_key):
 
         function setCopyState(button, state) {
             const states = {
-                idle: ["", "Copy selected cards to clipboard", "var(--blue)"],
-                loading: ["…", "Preparing image", "var(--warning)"],
-                success: ["✓", "Image copied", "var(--green)"],
-                error: ["!", "Copy failed", "var(--error)"]
+                idle: ["Copy selected", "Copy selected cards to clipboard"],
+                loading: ["Preparing…", "Preparing image"],
+                success: ["Copied", "Image copied"],
+                error: ["Copy failed", "Copy failed"]
             };
-            const [label, accessibleLabel, background] = states[state];
-            if (state === "idle") button.innerHTML = copyIdleContent;
-            else button.textContent = label;
+            const [label, accessibleLabel] = states[state];
+            button.textContent = label;
             button.setAttribute("aria-label", accessibleLabel);
             button.title = accessibleLabel;
-            button.style.background = background;
-            button.disabled = state === "loading";
+            button.dataset.state = state;
+            button.disabled = state === "loading" || (state === "idle" && !hasSelectedCards());
+            if (state === "idle" && button.disabled) button.textContent = "Select items";
         }
 
         function canvasToBlob(canvas) {
@@ -607,11 +618,18 @@ def render_share_controls(storage_key):
             });
         }
 
-        document.getElementById("copy-btn").addEventListener("click", async function() {
+        dialog.querySelector("#share-picker-copy").addEventListener("click", async function() {
             const button = this;
-            if (resetTimer) clearTimeout(resetTimer);
             const state = siapkanTarget();
-            if (!state) return;
+            if (resetTimer) {
+                clearTimeout(resetTimer);
+                resetTimer = null;
+            }
+            if (!state) {
+                setCopyState(button, "error");
+                resetTimer = setTimeout(() => setCopyState(button, "idle"), 1800);
+                return;
+            }
             setCopyState(button, "loading");
             try {
                 if (!window.html2canvas || !navigator.clipboard?.write || !window.ClipboardItem) {
@@ -635,7 +653,11 @@ def render_share_controls(storage_key):
                 state.wrapper.remove();
                 activeCaptureWrapper = null;
                 button.disabled = false;
-                resetTimer = setTimeout(() => setCopyState(button, "idle"), 1800);
+                const didCopy = button.dataset.state === "success";
+                resetTimer = setTimeout(() => {
+                    setCopyState(button, "idle");
+                    if (didCopy) dialog.close();
+                }, didCopy ? 900 : 1800);
             }
         });
     </script>

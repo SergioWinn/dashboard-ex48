@@ -270,9 +270,9 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     max-width: none;
     aspect-ratio: 1 / 1;
     object-fit: cover;
-    object-position: center 12%;
+    object-position: center top;
     transform: scale(1.16);
-    transform-origin: center 22%;
+    transform-origin: center top;
 }
 
 .ldp-card.sold .c-photo-image,
@@ -411,6 +411,8 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
+    object-position: center top !important;
+    transform-origin: center top !important;
 }
 
 .capture-mode .sb-left h3,
