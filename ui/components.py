@@ -2,6 +2,7 @@
 
 import streamlit as st
 import re
+from html import escape
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 
@@ -151,76 +152,14 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
     admin_keys = st.secrets.get("ADMIN_KEYS", [])
     is_admin = st.query_params.get("akses") in admin_keys
 
-    if is_admin:
-        session_labels = []
-        for sesi in active_sessions:
-            session_date = sesi.get('session_date_wib')
-            date_label = session_date.strftime('%d/%m/%Y') if session_date else sesi.get('date', '')[:10]
-            session_label = re.split(r'[\(·]', sesi.get('label', 'Session'))[0].strip()
-            time_label = ""
-            if sesi.get('start_time'):
-                time_label = f" | {sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}"
-            session_labels.append(f"{date_label} | {session_label}{time_label}")
-
-        selection_context = search_query if is_search_mode else selected_date
-        safe_context = re.sub(r'[^a-zA-Z0-9]+', '_', selection_context).strip('_')
-
-        with st.expander("📸 Select content to share", expanded=False):
-            selected_session_indexes = st.multiselect(
-                "Sessions",
-                options=list(range(len(active_sessions))),
-                default=list(range(len(active_sessions))),
-                format_func=lambda index: session_labels[index],
-                key=f"share_sessions_{event_id}_{safe_context}",
-            )
-
-            selected_sessions = [active_sessions[index] for index in selected_session_indexes]
-            member_options = sorted({
-                member.get('jkt48_member_name', 'Unknown')
-                for sesi in selected_sessions
-                for member in sesi['filtered_members']
-            })
-            session_key = '_'.join(str(index) for index in selected_session_indexes) or 'none'
-            selected_members = st.multiselect(
-                "Members",
-                options=member_options,
-                default=member_options,
-                key=f"share_members_{event_id}_{safe_context}_{session_key}",
-            )
-            st.caption("The clipboard and camera buttons will only capture the selected sessions and members.")
-
-        filtered_sessions = []
-        selected_member_names = set(selected_members)
-        for sesi in selected_sessions:
-            selected_session_members = [
-                member for member in sesi['filtered_members']
-                if member.get('jkt48_member_name', 'Unknown') in selected_member_names
-            ]
-            if selected_session_members:
-                selected_sesi = sesi.copy()
-                selected_sesi['filtered_members'] = selected_session_members
-                filtered_sessions.append(selected_sesi)
-
-        active_sessions = filtered_sessions
-        if not active_sessions:
-            st.info("Select at least one session and member to prepare a screenshot.")
-            return
-
     now_dt = datetime.utcnow() + timedelta(hours=7)
     waktu_sekarang = now_dt.strftime('%d/%m/%Y %H:%M WIB')
-    waktu_save = now_dt.strftime('%d%m%Y_%H%M') 
-    
     judul_event = event_data.get('title', 'JKT48 Exclusive Event').upper()
-    safe_event_code = event_id if event_id else "EVENT"
     
     if is_search_mode:
         report_title = f"🔍 {search_query.upper()}"
-        safe_query = search_query.strip().replace(' ', '').title()
-        file_name = f"Quota_{safe_event_code}_{safe_query}_Save_{waktu_save}"
     else:
         report_title = f"📅 {selected_date}"
-        safe_date = selected_date.split(' ')[0].replace('/', '') 
-        file_name = f"Quota_{safe_event_code}_{safe_date}_Save_{waktu_save}"
 
     banner_html = f"""
     <div id="share-banner" class="share-banner" style="display: none;">
@@ -240,7 +179,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
     if is_search_mode:
         master_html_buffer += '<div class="cards-grid">'
 
-    for sesi in active_sessions:
+    for session_index, sesi in enumerate(active_sessions):
         members = sesi['filtered_members']
         is_before_deadline = sesi['is_before_deadline']
         session_date_wib = sesi['session_date_wib']
@@ -248,10 +187,13 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
         raw_label = sesi.get('label', 'Session')
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip().replace("Sesi", "Session")
         time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
+        session_share_key = f"session-{session_index}"
+        session_date_label = session_date_wib.strftime('%d/%m/%Y') if session_date_wib else sesi.get('date', '')[:10]
+        session_share_label = escape(f"{session_date_label} · {sesi_label}{time_info}", quote=True)
         
         if not is_search_mode:
-            master_html_buffer += f"<h4 style='color: inherit; margin-top: 5px; margin-bottom: 15px; font-family: Inter, sans-serif; font-size: 16px;'>{sesi_label} <span style='opacity:0.5; font-size: 13px; font-weight: 500;'>{time_info}</span></h4>"
-            master_html_buffer += '<div class="cards-grid">'
+            master_html_buffer += f"<h4 data-share-session-heading='{session_share_key}' style='color: inherit; margin-top: 5px; margin-bottom: 15px; font-family: Inter, sans-serif; font-size: 16px;'>{sesi_label} <span style='opacity:0.5; font-size: 13px; font-weight: 500;'>{time_info}</span></h4>"
+            master_html_buffer += f'<div class="cards-grid" data-share-session-grid="{session_share_key}">'
             
         for m in members:
             member_name = m.get('jkt48_member_name', 'Unknown')
@@ -277,6 +219,8 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             
             display_member = member_name.replace(' ', '&nbsp;')            
             display_jalur = jalur_label
+            share_member_name = escape(member_name, quote=True)
+            share_attributes = f'data-share-session="{session_share_key}" data-share-session-label="{session_share_label}" data-share-member="{share_member_name}"'
             
             total_slot_capacity = tickets_sold + current_quota
             sold_percentage = (tickets_sold / total_slot_capacity * 100) if total_slot_capacity > 0 else 0
@@ -330,7 +274,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             # Jika sudah habis ATAU lewat deadline sesi ATAU event tutup total, matikan link <a>
             if current_quota <= 0 or not is_before_deadline or is_event_closed: 
                 card_html += (
-                    f'<div class="ldp-card {cls}">'
+                    f'<div class="ldp-card {cls}" {share_attributes}>'
                     f'{badge_html}'
                     f'<div class="c-jalur" title="{jalur_label}">{display_jalur}</div>'
                     f'{img_html}'
@@ -342,7 +286,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 )
             else: 
                 card_html += (
-                    f'<div class="ldp-card {cls}">'
+                    f'<div class="ldp-card {cls}" {share_attributes}>'
                     f'{badge_html}'
                     f'<div class="c-jalur" title="{jalur_label}">{display_jalur}</div>'
                     f'{img_html}'
@@ -366,89 +310,248 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
     st.markdown(master_html_buffer, unsafe_allow_html=True)
     
     if is_admin:
-        safe_name = file_name.replace('(', '').replace(')', '')
-        components.html(f"""
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        <style>
-            body {{ margin: 0; padding: 0; background: transparent; display: flex; gap: 10px; justify-content: center; align-items: center; overflow: hidden; }}
-            .btn-action {{
-                color: white; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 20px; cursor: pointer; 
-                display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); outline: none;
-            }}
-            #dl-btn {{ background: #10B981; }}
-            #dl-btn:hover {{ background: #0D9488; box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }}
-            #copy-btn {{ background: #3B82F6; }}
-            #copy-btn:hover {{ background: #1D4ED8; box-shadow: 0 0 15px rgba(59, 130, 246, 0.6); }}
-        </style>
-        
-        <button class="btn-action" id="copy-btn" title="Copy Image to Clipboard" aria-label="Copy infographic image to clipboard">📋</button>
-        <button class="btn-action" id="dl-btn" title="Download Infographic Image" aria-label="Download infographic image">📸</button>
-        
-        <script>
-            try {{
-                const iframe = window.frameElement;
-                if (iframe) {{
-                    iframe.style.position = 'fixed'; iframe.style.bottom = '30px'; iframe.style.right = '30px';
-                    iframe.style.width = '130px'; iframe.style.height = '65px'; iframe.style.zIndex = '999999'; iframe.style.border = 'none';
-                }}
-            }} catch(e) {{}}
+        selection_context = search_query if is_search_mode else selected_date
+        safe_context = re.sub(r'[^a-zA-Z0-9]+', '_', selection_context).strip('_')
+        render_share_controls(f"share_selection_{event_id}_{safe_context}")
 
-            function siapkanTarget() {{
-                const target = window.parent.document.getElementById("laporan-container");
-                const banner = window.parent.document.getElementById("share-banner");
-                const appBgColor = window.getComputedStyle(window.parent.document.body).backgroundColor;
 
-                if (target) {{
-                    if(banner) banner.style.display = "flex";
-                    target.style.padding = "20px"; target.style.backgroundColor = appBgColor; target.style.borderRadius = "15px";
-                    target.dataset.themeBg = appBgColor; 
-                }}
-                return target;
-            }}
+def render_share_controls(storage_key):
+    controls_html = """
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { margin: 0; background: transparent; display: flex; gap: 10px; justify-content: center; align-items: center; overflow: hidden; }
+        .btn-action { color: white; border: 0; width: 50px; height: 50px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 8px rgba(0,0,0,.45); transition: transform 180ms ease, background 180ms ease; }
+        .btn-action:hover { transform: translateY(-2px); }
+        .btn-action:focus-visible { outline: 3px solid white; outline-offset: 2px; }
+        #copy-btn { background: #3B82F6; }
+        #copy-btn:hover { background: #1D4ED8; }
+        #select-btn { background: #10B981; }
+        #select-btn:hover { background: #0D9488; }
+        @media (prefers-reduced-motion: reduce) { .btn-action { transition: none; } }
+    </style>
+    <button class="btn-action" id="copy-btn" title="Copy selected cards" aria-label="Copy selected cards to clipboard">📋</button>
+    <button class="btn-action" id="select-btn" title="Select sessions and members" aria-label="Select sessions and members">☑️</button>
+    <script>
+        const storageKey = "__STORAGE_KEY__";
+        let selectedSessions = new Set();
+        let selectedMembers = new Set();
+        let sessionItems = [];
+        let memberItems = [];
 
-            function kembalikanTarget(target, banner) {{
-                if(banner) banner.style.display = "none";
-                target.style.padding = "0px"; target.style.backgroundColor = "transparent";
-            }}
+        try {
+            const iframe = window.frameElement;
+            if (iframe) {
+                iframe.style.position = "fixed";
+                iframe.style.bottom = "30px";
+                iframe.style.right = "30px";
+                iframe.style.width = "130px";
+                iframe.style.height = "65px";
+                iframe.style.zIndex = "1000";
+                iframe.style.border = "none";
+            }
+        } catch (e) {}
 
-            document.getElementById("dl-btn").addEventListener("click", function() {{
-                const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
-                if(target) {{
-                    btn.innerText = "⏳"; btn.style.background = "#FBBF24";
-                    setTimeout(() => {{
-                        window.html2canvas(target, {{ useCORS: true, backgroundColor: target.dataset.themeBg, scale: 2 }}).then(canvas => {{
-                            kembalikanTarget(target, banner);
-                            let link = document.createElement("a"); link.download = "{safe_name}.png"; link.href = canvas.toDataURL("image/png"); link.click();
-                            btn.innerText = "📸"; btn.style.background = "#10B981";
-                        }});
-                    }}, 150);
-                }}
-            }});
+        function loadSaved(group, available) {
+            try {
+                const saved = JSON.parse(window.parent.localStorage.getItem(`${storageKey}_${group}`));
+                if (Array.isArray(saved)) return new Set(saved.filter(value => available.includes(value)));
+            } catch (e) {}
+            return new Set(available);
+        }
 
-            document.getElementById("copy-btn").addEventListener("click", function() {{
-                const btn = this; const banner = window.parent.document.getElementById("share-banner"); const target = siapkanTarget();
-                if(target) {{
-                    btn.innerText = "⏳"; btn.style.background = "#FBBF24";
-                    setTimeout(() => {{
-                        window.html2canvas(target, {{ useCORS: true, backgroundColor: target.dataset.themeBg, scale: 2 }}).then(canvas => {{
-                            kembalikanTarget(target, banner);
-                            canvas.toBlob(function(blob) {{
-                                try {{
-                                    navigator.clipboard.write([new ClipboardItem({{ "image/png": blob }})]).then(function() {{
-                                        btn.innerText = "✅"; btn.style.background = "#10B981"; 
-                                        setTimeout(() => {{ btn.innerText = "📋"; btn.style.background = "#3B82F6"; }}, 1500);
-                                    }}).catch(function(err) {{
-                                        btn.innerText = "❌"; btn.style.background = "#EF4444";
-                                        setTimeout(() => {{ btn.innerText = "📋"; btn.style.background = "#3B82F6"; }}, 1500);
-                                    }});
-                                }} catch (e) {{
-                                    btn.innerText = "❌"; btn.style.background = "#EF4444";
-                                    setTimeout(() => {{ btn.innerText = "📋"; btn.style.background = "#3B82F6"; }}, 1500);
-                                }}
-                            }}, "image/png");
-                        }});
-                    }}, 150);
-                }}
-            }});
-        </script>
-        """, height=70)
+        function saveSelection() {
+            try {
+                window.parent.localStorage.setItem(`${storageKey}_sessions`, JSON.stringify([...selectedSessions]));
+                window.parent.localStorage.setItem(`${storageKey}_members`, JSON.stringify([...selectedMembers]));
+            } catch (e) {}
+        }
+
+        function refreshData() {
+            const cards = [...window.parent.document.querySelectorAll("#laporan-container .ldp-card[data-share-session]")];
+            const sessions = new Map();
+            const members = new Set();
+            cards.forEach(card => {
+                sessions.set(card.dataset.shareSession, card.dataset.shareSessionLabel);
+                members.add(card.dataset.shareMember);
+            });
+            sessionItems = [...sessions].map(([value, label]) => ({ value, label }));
+            memberItems = [...members].sort((a, b) => a.localeCompare(b)).map(value => ({ value, label: value }));
+            selectedSessions = loadSaved("sessions", sessionItems.map(item => item.value));
+            selectedMembers = loadSaved("members", memberItems.map(item => item.value));
+        }
+
+        const oldDialog = window.parent.document.getElementById("share-selection-dialog");
+        const reopenDialog = Boolean(oldDialog && oldDialog.open);
+        if (oldDialog) oldDialog.remove();
+        const dialog = window.parent.document.createElement("dialog");
+        dialog.id = "share-selection-dialog";
+        dialog.innerHTML = `
+            <style>
+                #share-selection-dialog { width: min(680px, calc(100vw - 32px)); max-height: min(720px, calc(100vh - 32px)); padding: 0; border: 0; border-radius: 16px; background: #111827; color: #F9FAFB; font-family: Inter, system-ui, sans-serif; box-shadow: 0 12px 32px rgba(0,0,0,.45); }
+                #share-selection-dialog::backdrop { background: rgba(0,0,0,.62); }
+                .share-picker-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 14px; border-bottom: 1px solid #374151; }
+                .share-picker-head h2 { margin: 0; font-size: 18px; }
+                .share-picker-head p { margin: 4px 0 0; color: #D1D5DB; font-size: 12px; }
+                .share-picker-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #374151; color: white; cursor: pointer; font-size: 20px; }
+                .share-picker-body { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 18px 22px; overflow: auto; max-height: calc(100vh - 210px); }
+                .share-picker-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+                .share-picker-section h3 { margin: 0; font-size: 14px; }
+                .share-picker-actions { display: flex; gap: 6px; }
+                .share-picker-actions button { border: 0; background: transparent; color: #6EE7B7; font: inherit; font-size: 11px; cursor: pointer; padding: 4px; }
+                .share-picker-list { display: flex; flex-direction: column; gap: 4px; }
+                .share-picker-item { display: flex; align-items: flex-start; gap: 9px; padding: 8px; border-radius: 8px; cursor: pointer; color: #F3F4F6; font-size: 13px; line-height: 1.35; }
+                .share-picker-item:hover { background: #1F2937; }
+                .share-picker-item input { margin-top: 2px; accent-color: #10B981; }
+                .share-picker-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 18px; border-top: 1px solid #374151; }
+                #share-picker-count { color: #D1D5DB; font-size: 12px; }
+                #share-picker-done { border: 0; border-radius: 9px; background: #10B981; color: #052E25; padding: 9px 18px; font-weight: 800; cursor: pointer; }
+                @media (max-width: 600px) { .share-picker-body { grid-template-columns: 1fr; } }
+            </style>
+            <div class="share-picker-head">
+                <div><h2>Select content to copy</h2><p>Choose sessions and members for the clipboard image.</p></div>
+                <button class="share-picker-close" aria-label="Close">×</button>
+            </div>
+            <div class="share-picker-body">
+                <section class="share-picker-section">
+                    <div class="share-picker-section-head"><h3>Sessions</h3><div class="share-picker-actions"><button data-group="sessions" data-action="all">All</button><button data-group="sessions" data-action="none">None</button></div></div>
+                    <div class="share-picker-list" id="share-session-list"></div>
+                </section>
+                <section class="share-picker-section">
+                    <div class="share-picker-section-head"><h3>Members</h3><div class="share-picker-actions"><button data-group="members" data-action="all">All</button><button data-group="members" data-action="none">None</button></div></div>
+                    <div class="share-picker-list" id="share-member-list"></div>
+                </section>
+            </div>
+            <div class="share-picker-foot"><span id="share-picker-count"></span><button id="share-picker-done">Done</button></div>`;
+        window.parent.document.body.appendChild(dialog);
+
+        function updateCount() {
+            dialog.querySelector("#share-picker-count").textContent = `${selectedSessions.size} session(s) · ${selectedMembers.size} member(s)`;
+        }
+
+        function renderList(containerId, items, selection) {
+            const container = dialog.querySelector(containerId);
+            container.replaceChildren();
+            items.forEach(item => {
+                const label = window.parent.document.createElement("label");
+                label.className = "share-picker-item";
+                const checkbox = window.parent.document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.checked = selection.has(item.value);
+                checkbox.addEventListener("change", () => {
+                    if (checkbox.checked) selection.add(item.value); else selection.delete(item.value);
+                    saveSelection();
+                    updateCount();
+                });
+                const text = window.parent.document.createElement("span");
+                text.textContent = item.label;
+                label.append(checkbox, text);
+                container.appendChild(label);
+            });
+        }
+
+        function renderPicker() {
+            renderList("#share-session-list", sessionItems, selectedSessions);
+            renderList("#share-member-list", memberItems, selectedMembers);
+            updateCount();
+        }
+
+        dialog.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => {
+            const isSessions = button.dataset.group === "sessions";
+            const items = isSessions ? sessionItems : memberItems;
+            const selection = button.dataset.action === "all" ? new Set(items.map(item => item.value)) : new Set();
+            if (isSessions) selectedSessions = selection; else selectedMembers = selection;
+            saveSelection();
+            renderPicker();
+        }));
+        dialog.querySelector(".share-picker-close").addEventListener("click", () => dialog.close());
+        dialog.querySelector("#share-picker-done").addEventListener("click", () => dialog.close());
+        dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+
+        document.getElementById("select-btn").addEventListener("click", () => {
+            refreshData();
+            renderPicker();
+            dialog.showModal();
+        });
+        if (reopenDialog) {
+            refreshData();
+            renderPicker();
+            dialog.showModal();
+        }
+
+        function siapkanTarget() {
+            refreshData();
+            if (!selectedSessions.size || !selectedMembers.size) {
+                renderPicker();
+                dialog.showModal();
+                return null;
+            }
+            const target = window.parent.document.getElementById("laporan-container");
+            const banner = window.parent.document.getElementById("share-banner");
+            if (!target) return null;
+            const changedElements = [];
+            const hide = element => {
+                changedElements.push([element, element.style.display]);
+                element.style.display = "none";
+            };
+            target.querySelectorAll(".ldp-card[data-share-session]").forEach(card => {
+                if (!selectedSessions.has(card.dataset.shareSession) || !selectedMembers.has(card.dataset.shareMember)) hide(card);
+            });
+            target.querySelectorAll("[data-share-session-grid]").forEach(grid => {
+                const hasVisibleCard = [...grid.querySelectorAll(".ldp-card")].some(card => card.style.display !== "none");
+                if (!hasVisibleCard) {
+                    hide(grid);
+                    const heading = target.querySelector(`[data-share-session-heading="${grid.dataset.shareSessionGrid}"]`);
+                    if (heading) hide(heading);
+                }
+            });
+            const appBgColor = window.getComputedStyle(window.parent.document.body).backgroundColor;
+            const targetStyle = [target.style.padding, target.style.backgroundColor, target.style.borderRadius];
+            const bannerDisplay = banner ? banner.style.display : "";
+            if (banner) banner.style.display = "flex";
+            target.style.padding = "20px";
+            target.style.backgroundColor = appBgColor;
+            target.style.borderRadius = "15px";
+            return { target, banner, bannerDisplay, changedElements, targetStyle, appBgColor };
+        }
+
+        function kembalikanTarget(state) {
+            if (state.banner) state.banner.style.display = state.bannerDisplay;
+            state.changedElements.forEach(([element, display]) => { element.style.display = display; });
+            [state.target.style.padding, state.target.style.backgroundColor, state.target.style.borderRadius] = state.targetStyle;
+        }
+
+        function resetCopyButton(button) {
+            setTimeout(() => { button.innerText = "📋"; button.style.background = "#3B82F6"; }, 1500);
+        }
+
+        document.getElementById("copy-btn").addEventListener("click", function() {
+            const button = this;
+            const state = siapkanTarget();
+            if (!state) return;
+            button.innerText = "⏳";
+            button.style.background = "#FBBF24";
+            setTimeout(() => {
+                window.html2canvas(state.target, { useCORS: true, backgroundColor: state.appBgColor, scale: 2 }).then(canvas => {
+                    kembalikanTarget(state);
+                    canvas.toBlob(blob => {
+                        navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => {
+                            button.innerText = "✅";
+                            button.style.background = "#10B981";
+                            resetCopyButton(button);
+                        }).catch(() => {
+                            button.innerText = "❌";
+                            button.style.background = "#EF4444";
+                            resetCopyButton(button);
+                        });
+                    }, "image/png");
+                }).catch(() => {
+                    kembalikanTarget(state);
+                    button.innerText = "❌";
+                    button.style.background = "#EF4444";
+                    resetCopyButton(button);
+                });
+            }, 150);
+        });
+    </script>
+    """
+    components.html(controls_html.replace("__STORAGE_KEY__", storage_key), height=70)
