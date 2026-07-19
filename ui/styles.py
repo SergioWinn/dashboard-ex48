@@ -111,8 +111,11 @@ html, body, .stApp {
 .live-badge {
     display: inline-flex;
     width: fit-content;
+    min-width: max-content;
     min-height: 32px;
+    margin-top: var(--space-xs);
     align-items: center;
+    flex-shrink: 0;
     gap: var(--space-xs);
     padding-inline: var(--space-sm);
     border: 1px solid var(--color-accent);
@@ -121,7 +124,9 @@ html, body, .stApp {
     color: var(--color-accent);
     font-size: 0.7rem;
     font-weight: 800;
+    line-height: 1;
     letter-spacing: 0.04em;
+    white-space: nowrap;
 }
 
 .live-dot {
@@ -248,16 +253,30 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     width: 72px;
     height: 72px;
     flex: 0 0 72px;
+    aspect-ratio: 1 / 1;
     margin: var(--space-sm) auto;
     border: 2px solid var(--color-rule-strong);
     border-radius: 50%;
     background: var(--color-photo);
-    object-fit: cover;
-    object-position: center 8%;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
 }
 
-.ldp-card.sold .c-photo,
-.ldp-card.closed .c-photo {
+.c-photo-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    object-position: center 12%;
+    transform: scale(1.16);
+    transform-origin: center 22%;
+}
+
+.ldp-card.sold .c-photo-image,
+.ldp-card.closed .c-photo-image {
     filter: saturate(35%);
     opacity: 0.82;
 }
@@ -340,12 +359,10 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     position: relative;
     z-index: 1;
     color: var(--color-on-status);
-    padding: 0.15rem 0.4rem;
-    border-radius: var(--radius-sm);
-    background: var(--color-text-shadow);
     font-size: 0.68rem;
     font-weight: 800;
     letter-spacing: 0.035em;
+    text-shadow: 0 1px 2px var(--color-text-shadow);
     white-space: nowrap;
 }
 
@@ -384,6 +401,24 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     padding: 12px 10px;
 }
 
+.capture-mode .c-photo {
+    width: 72px !important;
+    height: 72px !important;
+    flex-basis: 72px !important;
+}
+
+.capture-mode .c-photo-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+}
+
+.capture-mode .sb-left h3,
+.capture-mode .session-heading {
+    font-family: var(--font-body);
+    word-spacing: 0.12em;
+}
+
 @media (min-width: 22rem) {
     .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -394,7 +429,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
         align-items: start;
     }
     .ldp-title, .ldp-subtitle, .credit-container { grid-column: 1; }
-    .live-badge { grid-column: 2; grid-row: 1 / span 2; }
+    .live-badge { grid-column: 2; grid-row: 1; align-self: center; justify-self: end; }
     .st-key-event_filters [data-testid="stHorizontalBlock"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .st-key-summary_metrics [data-testid="stHorizontalBlock"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

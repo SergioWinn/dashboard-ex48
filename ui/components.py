@@ -267,13 +267,18 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             raw_photo_url = str(raw_photo_value) if raw_photo_value else ""
             
             if raw_photo_url:
-                proxy_url = f"https://wsrv.nl/?url={quote(raw_photo_url, safe='')}&w=180&output=webp"
+                proxy_url = f"https://wsrv.nl/?url={quote(raw_photo_url, safe='')}&w=180&h=180&fit=cover&output=webp"
             else:
                 proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
 
             safe_proxy_url = escape(proxy_url, quote=True)
             safe_photo_alt = escape(f"{member_name} JKT48 photo", quote=True)
-            img_html = f'<img class="c-photo" src="{safe_proxy_url}" alt="{safe_photo_alt}" width="72" height="72" loading="lazy">'
+            img_html = (
+                f'<div class="c-photo">'
+                f'<img class="c-photo-image" src="{safe_proxy_url}" alt="{safe_photo_alt}" '
+                f'width="180" height="180" loading="lazy">'
+                f'</div>'
+            )
                                         
             combined_ui = f"""
             <div class="c-stats">
