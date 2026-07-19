@@ -148,6 +148,64 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
         return
 
     is_search_mode = bool(search_query)
+    admin_keys = st.secrets.get("ADMIN_KEYS", [])
+    is_admin = st.query_params.get("akses") in admin_keys
+
+    if is_admin:
+        session_labels = []
+        for sesi in active_sessions:
+            session_date = sesi.get('session_date_wib')
+            date_label = session_date.strftime('%d/%m/%Y') if session_date else sesi.get('date', '')[:10]
+            session_label = re.split(r'[\(·]', sesi.get('label', 'Session'))[0].strip()
+            time_label = ""
+            if sesi.get('start_time'):
+                time_label = f" | {sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}"
+            session_labels.append(f"{date_label} | {session_label}{time_label}")
+
+        selection_context = search_query if is_search_mode else selected_date
+        safe_context = re.sub(r'[^a-zA-Z0-9]+', '_', selection_context).strip('_')
+
+        with st.expander("📸 Select content to share", expanded=False):
+            selected_session_indexes = st.multiselect(
+                "Sessions",
+                options=list(range(len(active_sessions))),
+                default=list(range(len(active_sessions))),
+                format_func=lambda index: session_labels[index],
+                key=f"share_sessions_{event_id}_{safe_context}",
+            )
+
+            selected_sessions = [active_sessions[index] for index in selected_session_indexes]
+            member_options = sorted({
+                member.get('jkt48_member_name', 'Unknown')
+                for sesi in selected_sessions
+                for member in sesi['filtered_members']
+            })
+            session_key = '_'.join(str(index) for index in selected_session_indexes) or 'none'
+            selected_members = st.multiselect(
+                "Members",
+                options=member_options,
+                default=member_options,
+                key=f"share_members_{event_id}_{safe_context}_{session_key}",
+            )
+            st.caption("The clipboard and camera buttons will only capture the selected sessions and members.")
+
+        filtered_sessions = []
+        selected_member_names = set(selected_members)
+        for sesi in selected_sessions:
+            selected_session_members = [
+                member for member in sesi['filtered_members']
+                if member.get('jkt48_member_name', 'Unknown') in selected_member_names
+            ]
+            if selected_session_members:
+                selected_sesi = sesi.copy()
+                selected_sesi['filtered_members'] = selected_session_members
+                filtered_sessions.append(selected_sesi)
+
+        active_sessions = filtered_sessions
+        if not active_sessions:
+            st.info("Select at least one session and member to prepare a screenshot.")
+            return
+
     now_dt = datetime.utcnow() + timedelta(hours=7)
     waktu_sekarang = now_dt.strftime('%d/%m/%Y %H:%M WIB')
     waktu_save = now_dt.strftime('%d%m%Y_%H%M') 
@@ -307,8 +365,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
 
     st.markdown(master_html_buffer, unsafe_allow_html=True)
     
-    KODE_ADMIN_LIST = st.secrets.get("ADMIN_KEYS", [])
-    if st.query_params.get("akses") in KODE_ADMIN_LIST:
+    if is_admin:
         safe_name = file_name.replace('(', '').replace(')', '')
         components.html(f"""
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
