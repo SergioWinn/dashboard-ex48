@@ -364,7 +364,7 @@ def render_share_controls(storage_key):
             const iframe = window.frameElement;
             if (iframe) {
                 iframe.style.position = "fixed";
-                iframe.style.bottom = "calc(16px + env(safe-area-inset-bottom, 0px))";
+                iframe.style.bottom = "calc(88px + env(safe-area-inset-bottom, 0px))";
                 iframe.style.right = "calc(16px + env(safe-area-inset-right, 0px))";
                 iframe.style.width = "60px";
                 iframe.style.height = "60px";
@@ -632,7 +632,9 @@ def render_share_controls(storage_key):
             }
             setCopyState(button, "loading");
             try {
-                if (!window.html2canvas || !navigator.clipboard?.write || !window.ClipboardItem) {
+                const clipboard = window.parent.navigator.clipboard || navigator.clipboard;
+                const ClipboardItemClass = window.parent.ClipboardItem || window.ClipboardItem;
+                if (!window.html2canvas || !clipboard?.write || !ClipboardItemClass) {
                     throw new Error("Image clipboard is not supported in this browser");
                 }
                 const blobPromise = (async () => {
@@ -644,7 +646,7 @@ def render_share_controls(storage_key):
                     });
                     return canvasToBlob(canvas);
                 })();
-                await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+                await clipboard.write([new ClipboardItemClass({ "image/png": blobPromise })]);
                 setCopyState(button, "success");
             } catch (error) {
                 console.error("Copy image failed", error);
