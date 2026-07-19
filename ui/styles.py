@@ -218,6 +218,16 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     transition: transform var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out);
 }
 
+.ldp-card.purchase-card {
+    color: inherit !important;
+}
+
+.purchase-card .c-jalur,
+.purchase-card .c-member,
+.purchase-card .c-stats {
+    color: inherit !important;
+}
+
 .ldp-card.avail { border-bottom-color: var(--color-accent); }
 .ldp-card.warn { border-bottom-color: var(--color-warning); }
 .ldp-card.sold { border-bottom-color: var(--color-danger); }
@@ -362,6 +372,20 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     letter-spacing: 0.035em;
     text-shadow: 0 1px 2px var(--color-text-shadow);
     white-space: nowrap;
+}
+
+.ldp-card.avail .c-prog-text {
+    color: inherit;
+}
+
+.ldp-card.warn .c-prog-text {
+    color: var(--color-warning-ink);
+    text-shadow: none;
+}
+
+.ldp-card.sold .c-prog-text,
+.ldp-card.closed .c-prog-text {
+    color: var(--color-on-status);
 }
 
 /* Share capture banner and fixed export layout */
