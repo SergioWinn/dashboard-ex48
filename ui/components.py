@@ -364,7 +364,7 @@ def render_share_controls(storage_key):
             const iframe = window.frameElement;
             if (iframe) {
                 iframe.style.position = "fixed";
-                iframe.style.bottom = "calc(88px + env(safe-area-inset-bottom, 0px))";
+                iframe.style.bottom = "calc(72px + env(safe-area-inset-bottom, 0px))";
                 iframe.style.right = "calc(16px + env(safe-area-inset-right, 0px))";
                 iframe.style.width = "60px";
                 iframe.style.height = "60px";
