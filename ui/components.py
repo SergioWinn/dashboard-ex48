@@ -1,10 +1,20 @@
 # ui/components.py
 
 import streamlit as st
+import hashlib
 import re
 from html import escape
 from datetime import datetime, timedelta
+from urllib.parse import quote
 import streamlit.components.v1 as components
+
+
+def _as_int(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
 
 def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only, is_event_closed=False):
     # PERBAIKAN BUG: Samakan variabel parameter dengan yang dipakai di dalam fungsi
@@ -51,14 +61,16 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
     sessions_by_date = {}
     for sesi in sessions:
         is_before_deadline = True
-        raw_date = sesi.get('date', '')
+        raw_date = str(sesi.get('date') or '')
         session_date_wib = None
         
         if raw_date:
             try:
                 clean_date = raw_date.split('.')[0].replace('Z', '')
                 if 'T' in clean_date:
-                    session_date_wib = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+                    session_date_wib = datetime.strptime(clean_date, "%Y-%m-%dT%H:%M:%S")
+                    if 'Z' in raw_date:
+                        session_date_wib += timedelta(hours=7)
                 else:
                     session_date_wib = datetime.strptime(clean_date, "%Y-%m-%d")
             except:
@@ -76,7 +88,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                     
                 if is_before_deadline and sesi.get('end_time'):
                     try:
-                        t_end = datetime.strptime(sesi.get('end_time'), "%H:%M:%S").time()
+                        t_end = datetime.strptime(str(sesi.get('end_time')), "%H:%M:%S").time()
                         session_end_datetime = datetime.combine(session_date_wib.date(), t_end)
                         if now_wib > session_end_datetime:
                             is_before_deadline = False
@@ -88,15 +100,15 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
         if search_query:
             members = [
                 m for m in members 
-                if m.get('jkt48_member_name', '').lower() in matched_full_names 
-                or search_query in m.get('jkt48_member_name', '').lower()
+                if str(m.get('jkt48_member_name') or '').lower() in matched_full_names
+                or search_query in str(m.get('jkt48_member_name') or '').lower()
             ]
             
         if available_only:
             # Jika mode available dihidupkan, dan event tutup, langsung sembunyikan semua
             if not is_before_deadline or is_event_closed:
                 continue
-            members = [m for m in members if m.get('available_quota', 0) > 0]
+            members = [m for m in members if _as_int(m.get('available_quota')) > 0]
 
         if not members:
             continue
@@ -128,13 +140,12 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
         for d_sessions in sessions_by_date.values():
             active_sessions.extend(d_sessions)
         if active_sessions:
-            st.success(f"🔎 Showing all schedules for **'{search_query.title()}'** across dates.")
+            st.success(f"Showing all schedules for **'{search_query.title()}'** across dates.")
     else:
         if len(unique_dates) > 0:
-            st.markdown(f"📅 **Event Date:** {unique_dates[0] if len(unique_dates) == 1 else ''}")
+            st.markdown(f"**Event date:** {unique_dates[0] if len(unique_dates) == 1 else ''}")
             if len(unique_dates) > 1:
-                selected_date = st.radio("Select Date:", unique_dates, horizontal=True, key=f"filter_date_{event_id}", label_visibility="collapsed")
-                st.write("")
+                selected_date = st.radio("Select date", unique_dates, horizontal=True, key=f"filter_date_{event_id}")
             else:
                 selected_date = unique_dates[0]
             active_sessions = sessions_by_date.get(selected_date, [])
@@ -145,21 +156,18 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
         if search_query:
             st.warning(f"Member '{search_query.title()}' not found in this event.")
         else:
-            st.warning("🟢 All clear! No active tickets or available sessions right now.")
+            st.warning("No active tickets or available sessions right now.")
         return
 
     is_search_mode = bool(search_query)
-    admin_keys = st.secrets.get("ADMIN_KEYS", [])
-    is_admin = st.query_params.get("akses") in admin_keys
-
     now_dt = datetime.utcnow() + timedelta(hours=7)
     waktu_sekarang = now_dt.strftime('%d/%m/%Y %H:%M WIB')
-    judul_event = event_data.get('title', 'JKT48 Exclusive Event').upper()
+    judul_event = escape(str(event_data.get('title', 'JKT48 Exclusive Event')).upper())
     
     if is_search_mode:
-        report_title = f"🔍 {search_query.upper()}"
+        report_title = escape(f"Search: {search_query.upper()}")
     else:
-        report_title = f"📅 {selected_date}"
+        report_title = escape(f"Event date: {selected_date}")
 
     banner_html = f"""
     <div id="share-banner" class="share-banner" style="display: none;">
@@ -168,57 +176,65 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             <p>{report_title}</p>
         </div>
         <div class="sb-right">
-            <div class="sb-time">⏱️ {waktu_sekarang}</div>
+            <div class="sb-time">{waktu_sekarang}</div>
             <div class="sb-wm">LIVE TRACKER BY @ESTRELLAWIN19</div>
         </div>
     </div>
     """
     
-    master_html_buffer = f'<div id="laporan-container" style="transition: 0.2s;">{banner_html}'
+    master_html_buffer = f'<div id="laporan-container">{banner_html}'
     
     if is_search_mode:
         master_html_buffer += '<div class="cards-grid">'
 
-    for session_index, sesi in enumerate(active_sessions):
+    for sesi in active_sessions:
         members = sesi['filtered_members']
         is_before_deadline = sesi['is_before_deadline']
         session_date_wib = sesi['session_date_wib']
 
-        raw_label = sesi.get('label', 'Session')
+        raw_label = str(sesi.get('label', 'Session'))
         sesi_label = re.split(r'[\(·]', raw_label)[0].strip().replace("Sesi", "Session")
-        time_info = f" | {sesi.get('start_time', '')[:5]} - {sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
-        session_share_key = f"session-{session_index}"
-        session_date_label = session_date_wib.strftime('%d/%m/%Y') if session_date_wib else sesi.get('date', '')[:10]
+        start_time = str(sesi.get('start_time') or '')
+        end_time = str(sesi.get('end_time') or '')
+        time_info = f" | {start_time[:5]} - {end_time[:5]}" if start_time else ""
+        session_date_label = session_date_wib.strftime('%d/%m/%Y') if session_date_wib else str(sesi.get('date') or '')[:10]
+        session_identity = f"{session_date_label}|{raw_label}|{start_time}|{end_time}"
+        session_share_key = f"session-{hashlib.sha1(session_identity.encode('utf-8')).hexdigest()[:12]}"
         session_share_label = escape(f"{session_date_label} · {sesi_label}{time_info}", quote=True)
+        display_session_label = escape(sesi_label)
+        display_time_info = escape(time_info)
         
         if not is_search_mode:
-            master_html_buffer += f"<h4 data-share-session-heading='{session_share_key}' style='color: inherit; margin-top: 5px; margin-bottom: 15px; font-family: Inter, sans-serif; font-size: 16px;'>{sesi_label} <span style='opacity:0.5; font-size: 13px; font-weight: 500;'>{time_info}</span></h4>"
+            master_html_buffer += f'<h4 class="session-heading" data-share-session-heading="{session_share_key}">{display_session_label} <span class="session-time">{display_time_info}</span></h4>'
             master_html_buffer += f'<div class="cards-grid" data-share-session-grid="{session_share_key}">'
             
         for m in members:
-            member_name = m.get('jkt48_member_name', 'Unknown')
-            current_quota = m.get('available_quota', 0)
-            tickets_sold = m.get('tickets_sold', 0)
-            jalur_label = m.get("label", "-")
+            member_name = str(m.get('jkt48_member_name') or 'Unknown')
+            current_quota = _as_int(m.get('available_quota'))
+            tickets_sold = _as_int(m.get('tickets_sold'))
+            jalur_label = str(m.get("label", "-"))
+            jalur_title = jalur_label
             
             if is_search_mode:
                 if session_date_wib:
                     date_short = session_date_wib.strftime('%d/%m')
                 else:
-                    raw_d = sesi.get('date', '')
+                    raw_d = str(sesi.get('date') or '')
                     date_short = f"{raw_d[8:10]}/{raw_d[5:7]}" if len(raw_d) >= 10 else ""
 
                 sesi_short = sesi_label.replace("Session", "S.").replace("Sesi", "S.")
-                time_range = f"{sesi.get('start_time', '')[:5]}-{sesi.get('end_time', '')[:5]}" if sesi.get('start_time') else ""
+                time_range = f"{start_time[:5]}-{end_time[:5]}" if start_time else ""
                 time_str = f"<br>({time_range})" if time_range else ""
                 
                 if date_short:
-                    jalur_label = f"{date_short} • {sesi_short}{time_str}<br>{jalur_label}"
+                    display_jalur = f"{escape(date_short)} · {escape(sesi_short)}{time_str}<br>{escape(jalur_label)}"
                 else:
-                    jalur_label = f"{sesi_short}{time_str}<br>{jalur_label}"
+                    display_jalur = f"{escape(sesi_short)}{time_str}<br>{escape(jalur_label)}"
+                jalur_title = f"{date_short} {sesi_short} {jalur_label}"
+            else:
+                display_jalur = escape(jalur_label)
             
-            display_member = member_name.replace(' ', '&nbsp;')            
-            display_jalur = jalur_label
+            display_member = escape(member_name)
             share_member_name = escape(member_name, quote=True)
             share_attributes = f'data-share-session="{session_share_key}" data-share-session-label="{session_share_label}" data-share-member="{share_member_name}"'
             
@@ -230,42 +246,41 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 # TEMA CLOSED (Abu-abu mati mendominasi)
                 cls, btn_text = "closed", "CLOSED"
                 sold_percentage = 100
-                bar_color = "#555555"
                 badge_html = ""
             elif current_quota <= 0:
                 # TEMA SOLD OUT (Merah murni)
                 cls, btn_text = "sold", "SOLD&nbsp;OUT"
                 sold_percentage = 100
-                bar_color = "#EF4444"
                 badge_html = ""
             elif current_quota < warn_limit:
                 # TEMA LOW QUOTA (Kuning hati-hati)
                 cls, btn_text = "warn", f"{current_quota}&nbsp;LEFT"
-                bar_color = "#FBBF24"
-                badge_html = '<div class="c-badge" style="background-color: #FBBF24; color: black;">LOW</div>'
+                badge_html = '<div class="c-badge">LOW</div>'
             else:
                 # TEMA AVAILABLE (Hijau normal)
                 cls, btn_text = "avail", f"{current_quota}&nbsp;LEFT"
-                bar_color = "#10B981"
                 badge_html = '<div class="c-badge">AVAILABLE</div>'
             # ----------------------------------------------------------------------
 
             safe_name_img = member_name.strip().lower()
-            raw_photo_url = photo_map.get(safe_name_img, "")
+            raw_photo_value = photo_map.get(safe_name_img)
+            raw_photo_url = str(raw_photo_value) if raw_photo_value else ""
             
             if raw_photo_url:
-                proxy_url = f"https://wsrv.nl/?url={raw_photo_url}&w=150&output=webp"
+                proxy_url = f"https://wsrv.nl/?url={quote(raw_photo_url, safe='')}&w=180&output=webp"
             else:
                 proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                
-            img_html = f'<div class="c-photo" style="background-image: url(\'{proxy_url}\');" role="img" aria-label="{member_name} JKT48 Photo"></div>'
+
+            safe_proxy_url = escape(proxy_url, quote=True)
+            safe_photo_alt = escape(f"{member_name} JKT48 photo", quote=True)
+            img_html = f'<img class="c-photo" src="{safe_proxy_url}" alt="{safe_photo_alt}" width="72" height="72" loading="lazy">'
                                         
             combined_ui = f"""
             <div class="c-stats">
                 <span>Sold:&nbsp;<b>{tickets_sold}</b></span>
             </div>
             <div class="c-prog-btn">
-                <div class="c-prog-fill" style="width: {sold_percentage}%; background-color: {bar_color};"></div>
+                <div class="c-prog-fill" style="transform: scaleX({max(0, min(100, sold_percentage)) / 100:.4f});"></div>
                 <div class="c-prog-text">{btn_text}</div>
             </div>
             """
@@ -276,25 +291,28 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 card_html += (
                     f'<div class="ldp-card {cls}" {share_attributes}>'
                     f'{badge_html}'
-                    f'<div class="c-jalur" title="{jalur_label}">{display_jalur}</div>'
+                    f'<div class="c-jalur" title="{escape(jalur_title, quote=True)}">{display_jalur}</div>'
                     f'{img_html}'
                     f'<div class="c-member">{display_member}</div>'
-                    f'<div style="margin-top: auto; width: 100%;">'
+                    f'<div class="c-card-foot">'
                     f'{combined_ui}'
                     f'</div>'
                     f'</div>'
                 )
             else: 
+                purchase_aria = escape(
+                    f"Purchase ticket for {member_name}, {sesi_label}, {current_quota} remaining",
+                    quote=True,
+                )
                 card_html += (
-                    f'<div class="ldp-card {cls}" {share_attributes}>'
+                    f'<a href="{escape(purchase_link, quote=True)}" target="_blank" rel="noopener noreferrer" class="ldp-card purchase-card {cls}" aria-label="{purchase_aria}" {share_attributes}>'
                     f'{badge_html}'
-                    f'<div class="c-jalur" title="{jalur_label}">{display_jalur}</div>'
+                    f'<div class="c-jalur" title="{escape(jalur_title, quote=True)}">{display_jalur}</div>'
                     f'{img_html}'
                     f'<div class="c-member">{display_member}</div>'
-                    f'<a href="{purchase_link}" target="_blank" class="badge-link">'
+                    f'<div class="c-card-foot">'
                     f'{combined_ui}'
-                    f'</a>'
-                    f'</div>'
+                    f'</div></a>'
                 )
             
             master_html_buffer += card_html
@@ -309,43 +327,47 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
 
     st.markdown(master_html_buffer, unsafe_allow_html=True)
     
-    if is_admin:
-        selection_context = search_query if is_search_mode else selected_date
-        safe_context = re.sub(r'[^a-zA-Z0-9]+', '_', selection_context).strip('_')
-        render_share_controls(f"share_selection_{event_id}_{safe_context}")
-
-
 def render_share_controls(storage_key):
     controls_html = """
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body { margin: 0; background: transparent; display: flex; gap: 10px; justify-content: center; align-items: center; overflow: hidden; }
-        .btn-action { color: white; border: 0; width: 50px; height: 50px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 8px rgba(0,0,0,.45); transition: transform 180ms ease, background 180ms ease; }
-        .btn-action:hover { transform: translateY(-2px); }
+        :root { --green: #047857; --green-dark: #065F46; --blue: #2563EB; --blue-dark: #1D4ED8; --error: #B91C1C; --warning: #A16207; --button-ink: #FFFFFF; --button-shadow: rgba(0,0,0,.4); --ease-out: cubic-bezier(.16,1,.3,1); }
+        body { margin: 0; background: transparent; display: flex; gap: 8px; justify-content: center; align-items: center; overflow: hidden; }
+        .btn-action { color: var(--button-ink); border: 0; width: 48px; height: 48px; border-radius: 50%; font-size: 19px; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 8px var(--button-shadow); transition: transform 180ms var(--ease-out), background-color 180ms var(--ease-out); }
+        .btn-action svg { width: 20px; height: 20px; stroke: currentColor; }
+        .btn-action:active { transform: translateY(1px); }
         .btn-action:focus-visible { outline: 3px solid white; outline-offset: 2px; }
-        #copy-btn { background: #3B82F6; }
-        #copy-btn:hover { background: #1D4ED8; }
-        #select-btn { background: #10B981; }
-        #select-btn:hover { background: #0D9488; }
+        .btn-action:disabled { cursor: wait; opacity: .75; }
+        #copy-btn { background: var(--blue); }
+        #select-btn { background: var(--green); }
+        @media (hover: hover) and (pointer: fine) {
+            #copy-btn:hover { background: var(--blue-dark); transform: translateY(-2px); }
+            #select-btn:hover { background: var(--green-dark); transform: translateY(-2px); }
+        }
         @media (prefers-reduced-motion: reduce) { .btn-action { transition: none; } }
     </style>
-    <button class="btn-action" id="copy-btn" title="Copy selected cards" aria-label="Copy selected cards to clipboard">📋</button>
-    <button class="btn-action" id="select-btn" title="Select sessions and members" aria-label="Select sessions and members">☑️</button>
+    <button class="btn-action" id="copy-btn" title="Copy selected cards" aria-label="Copy selected cards to clipboard"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg></button>
+    <button class="btn-action" id="select-btn" title="Select sessions and members" aria-label="Select sessions and members"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"></path><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"></path></svg></button>
     <script>
         const storageKey = "__STORAGE_KEY__";
         let selectedSessions = new Set();
         let selectedMembers = new Set();
         let sessionItems = [];
         let memberItems = [];
+        let resetTimer = null;
+        let selectionInitialized = false;
+        let activeCaptureWrapper = null;
+        const copyButton = document.getElementById("copy-btn");
+        const copyIdleContent = copyButton.innerHTML;
 
         try {
             const iframe = window.frameElement;
             if (iframe) {
                 iframe.style.position = "fixed";
-                iframe.style.bottom = "30px";
-                iframe.style.right = "30px";
-                iframe.style.width = "130px";
-                iframe.style.height = "65px";
+                iframe.style.bottom = "calc(16px + env(safe-area-inset-bottom, 0px))";
+                iframe.style.right = "calc(16px + env(safe-area-inset-right, 0px))";
+                iframe.style.width = "120px";
+                iframe.style.height = "60px";
                 iframe.style.zIndex = "1000";
                 iframe.style.border = "none";
             }
@@ -376,8 +398,16 @@ def render_share_controls(storage_key):
             });
             sessionItems = [...sessions].map(([value, label]) => ({ value, label }));
             memberItems = [...members].sort((a, b) => a.localeCompare(b)).map(value => ({ value, label: value }));
-            selectedSessions = loadSaved("sessions", sessionItems.map(item => item.value));
-            selectedMembers = loadSaved("members", memberItems.map(item => item.value));
+            const availableSessions = sessionItems.map(item => item.value);
+            const availableMembers = memberItems.map(item => item.value);
+            if (!selectionInitialized) {
+                selectedSessions = loadSaved("sessions", availableSessions);
+                selectedMembers = loadSaved("members", availableMembers);
+                selectionInitialized = true;
+            } else {
+                selectedSessions = new Set([...selectedSessions].filter(value => availableSessions.includes(value)));
+                selectedMembers = new Set([...selectedMembers].filter(value => availableMembers.includes(value)));
+            }
         }
 
         const oldDialog = window.parent.document.getElementById("share-selection-dialog");
@@ -387,25 +417,31 @@ def render_share_controls(storage_key):
         dialog.id = "share-selection-dialog";
         dialog.innerHTML = `
             <style>
-                #share-selection-dialog { width: min(680px, calc(100vw - 32px)); max-height: min(720px, calc(100vh - 32px)); padding: 0; border: 0; border-radius: 16px; background: #111827; color: #F9FAFB; font-family: Inter, system-ui, sans-serif; box-shadow: 0 12px 32px rgba(0,0,0,.45); }
-                #share-selection-dialog::backdrop { background: rgba(0,0,0,.62); }
-                .share-picker-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 22px 14px; border-bottom: 1px solid #374151; }
+                #share-selection-dialog { --dialog-bg: #111827; --dialog-surface: #1F2937; --dialog-rule: #374151; --dialog-ink: #F9FAFB; --dialog-ink-muted: #D1D5DB; --dialog-accent: #6EE7B7; --dialog-accent-fill: #10B981; --dialog-accent-ink: #052E25; --dialog-backdrop: rgba(0,0,0,.62); --dialog-shadow: rgba(0,0,0,.45); --dialog-font: Inter, system-ui, sans-serif; position: fixed; inset: 0; width: min(680px, calc(100% - 24px)); height: fit-content; max-height: min(720px, calc(100dvh - 24px)); margin: auto; padding: 0; border: 0; border-radius: 12px; background: var(--dialog-bg); color: var(--dialog-ink); font-family: var(--dialog-font); box-shadow: 0 12px 32px var(--dialog-shadow); }
+                #share-selection-dialog::backdrop { background: var(--dialog-backdrop); }
+                .share-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--dialog-rule); }
                 .share-picker-head h2 { margin: 0; font-size: 18px; }
-                .share-picker-head p { margin: 4px 0 0; color: #D1D5DB; font-size: 12px; }
-                .share-picker-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #374151; color: white; cursor: pointer; font-size: 20px; }
-                .share-picker-body { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 18px 22px; overflow: auto; max-height: calc(100vh - 210px); }
+                .share-picker-head p { margin: 4px 0 0; color: var(--dialog-ink-muted); font-size: 12px; }
+                .share-picker-close { width: 44px; height: 44px; flex: 0 0 44px; border: 0; border-radius: 50%; background: var(--dialog-rule); color: var(--dialog-ink); cursor: pointer; font-size: 20px; }
+                .share-picker-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; padding: 18px 20px; overflow: auto; max-height: calc(100dvh - 210px); }
                 .share-picker-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
                 .share-picker-section h3 { margin: 0; font-size: 14px; }
                 .share-picker-actions { display: flex; gap: 6px; }
-                .share-picker-actions button { border: 0; background: transparent; color: #6EE7B7; font: inherit; font-size: 11px; cursor: pointer; padding: 4px; }
+                .share-picker-actions button { min-height: 44px; border: 0; background: transparent; color: var(--dialog-accent); font: inherit; font-size: 12px; cursor: pointer; padding: 8px; }
                 .share-picker-list { display: flex; flex-direction: column; gap: 4px; }
-                .share-picker-item { display: flex; align-items: flex-start; gap: 9px; padding: 8px; border-radius: 8px; cursor: pointer; color: #F3F4F6; font-size: 13px; line-height: 1.35; }
-                .share-picker-item:hover { background: #1F2937; }
-                .share-picker-item input { margin-top: 2px; accent-color: #10B981; }
-                .share-picker-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 18px; border-top: 1px solid #374151; }
-                #share-picker-count { color: #D1D5DB; font-size: 12px; }
-                #share-picker-done { border: 0; border-radius: 9px; background: #10B981; color: #052E25; padding: 9px 18px; font-weight: 800; cursor: pointer; }
-                @media (max-width: 600px) { .share-picker-body { grid-template-columns: 1fr; } }
+                .share-picker-item { min-height: 44px; display: flex; align-items: center; gap: 9px; padding: 8px; border-radius: 8px; cursor: pointer; color: var(--dialog-ink); font-size: 13px; line-height: 1.35; }
+                .share-picker-item:hover { background: var(--dialog-surface); }
+                .share-picker-item input { margin-top: 2px; accent-color: var(--dialog-accent-fill); }
+                .share-picker-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 18px; border-top: 1px solid var(--dialog-rule); }
+                #share-picker-count { color: var(--dialog-ink-muted); font-size: 12px; }
+                #share-picker-done { min-height: 44px; border: 0; border-radius: 8px; background: var(--dialog-accent-fill); color: var(--dialog-accent-ink); padding: 9px 18px; font-weight: 800; cursor: pointer; }
+                #share-selection-dialog button:focus-visible, #share-selection-dialog input:focus-visible { outline: 3px solid var(--dialog-accent); outline-offset: 2px; }
+                @media (max-width: 600px) {
+                    .share-picker-head { padding: 14px 14px 10px; }
+                    .share-picker-head p { display: none; }
+                    .share-picker-body { grid-template-columns: minmax(0, 1fr); padding: 12px 14px; max-height: calc(100dvh - 170px); }
+                    .share-picker-foot { padding: 10px 14px 14px; }
+                }
             </style>
             <div class="share-picker-head">
                 <div><h2>Select content to copy</h2><p>Choose sessions and members for the clipboard image.</p></div>
@@ -423,6 +459,10 @@ def render_share_controls(storage_key):
             </div>
             <div class="share-picker-foot"><span id="share-picker-count"></span><button id="share-picker-done">Done</button></div>`;
         window.parent.document.body.appendChild(dialog);
+        window.addEventListener("unload", () => {
+            dialog.remove();
+            activeCaptureWrapper?.remove();
+        }, { once: true });
 
         function updateCount() {
             dialog.querySelector("#share-picker-count").textContent = `${selectedSessions.size} session(s) · ${selectedMembers.size} member(s)`;
@@ -471,6 +511,7 @@ def render_share_controls(storage_key):
             refreshData();
             renderPicker();
             dialog.showModal();
+            requestAnimationFrame(() => dialog.querySelector("input")?.focus());
         });
         if (reopenDialog) {
             refreshData();
@@ -478,80 +519,121 @@ def render_share_controls(storage_key):
             dialog.showModal();
         }
 
+        function getCaptureBackground(source) {
+            let node = source;
+            while (node) {
+                const background = window.getComputedStyle(node).backgroundColor;
+                if (background && background !== "transparent" && !background.endsWith(", 0)")) return background;
+                node = node.parentElement;
+            }
+            return window.parent.matchMedia("(prefers-color-scheme: dark)").matches ? "#0E1117" : "#FFFFFF";
+        }
+
         function siapkanTarget() {
             refreshData();
             if (!selectedSessions.size || !selectedMembers.size) {
                 renderPicker();
                 dialog.showModal();
+                requestAnimationFrame(() => dialog.querySelector("input")?.focus());
                 return null;
             }
-            const target = window.parent.document.getElementById("laporan-container");
-            const banner = window.parent.document.getElementById("share-banner");
-            if (!target) return null;
-            const changedElements = [];
-            const hide = element => {
-                changedElements.push([element, element.style.display]);
-                element.style.display = "none";
-            };
+            const source = window.parent.document.getElementById("laporan-container");
+            if (!source) return null;
+
+            const target = source.cloneNode(true);
+            target.id = "share-capture-target";
+            target.classList.add("capture-mode");
+            target.querySelectorAll("img").forEach(image => { image.loading = "eager"; });
             target.querySelectorAll(".ldp-card[data-share-session]").forEach(card => {
-                if (!selectedSessions.has(card.dataset.shareSession) || !selectedMembers.has(card.dataset.shareMember)) hide(card);
+                if (!selectedSessions.has(card.dataset.shareSession) || !selectedMembers.has(card.dataset.shareMember)) card.style.display = "none";
             });
+            const hasSelectedCard = [...target.querySelectorAll(".ldp-card[data-share-session]")].some(card => card.style.display !== "none");
+            if (!hasSelectedCard) {
+                renderPicker();
+                dialog.showModal();
+                requestAnimationFrame(() => dialog.querySelector("input")?.focus());
+                return null;
+            }
             target.querySelectorAll("[data-share-session-grid]").forEach(grid => {
                 const hasVisibleCard = [...grid.querySelectorAll(".ldp-card")].some(card => card.style.display !== "none");
                 if (!hasVisibleCard) {
-                    hide(grid);
+                    grid.style.display = "none";
                     const heading = target.querySelector(`[data-share-session-heading="${grid.dataset.shareSessionGrid}"]`);
-                    if (heading) hide(heading);
+                    if (heading) heading.style.display = "none";
                 }
             });
-            const appBgColor = window.getComputedStyle(window.parent.document.body).backgroundColor;
-            const targetStyle = [target.style.padding, target.style.backgroundColor, target.style.borderRadius];
-            const bannerDisplay = banner ? banner.style.display : "";
+            const banner = target.querySelector("#share-banner");
             if (banner) banner.style.display = "flex";
-            target.style.padding = "20px";
-            target.style.backgroundColor = appBgColor;
-            target.style.borderRadius = "15px";
-            return { target, banner, bannerDisplay, changedElements, targetStyle, appBgColor };
+
+            const background = getCaptureBackground(source);
+            target.style.backgroundColor = background;
+            target.style.color = window.getComputedStyle(source).color;
+            const wrapper = window.parent.document.createElement("div");
+            wrapper.style.position = "fixed";
+            wrapper.style.left = "-12000px";
+            wrapper.style.top = "0";
+            wrapper.style.width = "1080px";
+            wrapper.style.pointerEvents = "none";
+            wrapper.appendChild(target);
+            window.parent.document.body.appendChild(wrapper);
+            activeCaptureWrapper = wrapper;
+            return { target, wrapper, background };
         }
 
-        function kembalikanTarget(state) {
-            if (state.banner) state.banner.style.display = state.bannerDisplay;
-            state.changedElements.forEach(([element, display]) => { element.style.display = display; });
-            [state.target.style.padding, state.target.style.backgroundColor, state.target.style.borderRadius] = state.targetStyle;
+        function setCopyState(button, state) {
+            const states = {
+                idle: ["", "Copy selected cards to clipboard", "var(--blue)"],
+                loading: ["…", "Preparing image", "var(--warning)"],
+                success: ["✓", "Image copied", "var(--green)"],
+                error: ["!", "Copy failed", "var(--error)"]
+            };
+            const [label, accessibleLabel, background] = states[state];
+            if (state === "idle") button.innerHTML = copyIdleContent;
+            else button.textContent = label;
+            button.setAttribute("aria-label", accessibleLabel);
+            button.title = accessibleLabel;
+            button.style.background = background;
+            button.disabled = state === "loading";
         }
 
-        function resetCopyButton(button) {
-            setTimeout(() => { button.innerText = "📋"; button.style.background = "#3B82F6"; }, 1500);
+        function canvasToBlob(canvas) {
+            return new Promise((resolve, reject) => {
+                canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Image conversion failed")), "image/png");
+            });
         }
 
-        document.getElementById("copy-btn").addEventListener("click", function() {
+        document.getElementById("copy-btn").addEventListener("click", async function() {
             const button = this;
+            if (resetTimer) clearTimeout(resetTimer);
             const state = siapkanTarget();
             if (!state) return;
-            button.innerText = "⏳";
-            button.style.background = "#FBBF24";
-            setTimeout(() => {
-                window.html2canvas(state.target, { useCORS: true, backgroundColor: state.appBgColor, scale: 2 }).then(canvas => {
-                    kembalikanTarget(state);
-                    canvas.toBlob(blob => {
-                        navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(() => {
-                            button.innerText = "✅";
-                            button.style.background = "#10B981";
-                            resetCopyButton(button);
-                        }).catch(() => {
-                            button.innerText = "❌";
-                            button.style.background = "#EF4444";
-                            resetCopyButton(button);
-                        });
-                    }, "image/png");
-                }).catch(() => {
-                    kembalikanTarget(state);
-                    button.innerText = "❌";
-                    button.style.background = "#EF4444";
-                    resetCopyButton(button);
-                });
-            }, 150);
+            setCopyState(button, "loading");
+            try {
+                if (!window.html2canvas || !navigator.clipboard?.write || !window.ClipboardItem) {
+                    throw new Error("Image clipboard is not supported in this browser");
+                }
+                const blobPromise = (async () => {
+                    await new Promise(resolve => setTimeout(resolve, 80));
+                    const canvas = await window.html2canvas(state.target, {
+                        useCORS: true,
+                        backgroundColor: state.background,
+                        scale: 2,
+                    });
+                    return canvasToBlob(canvas);
+                })();
+                await navigator.clipboard.write([new ClipboardItem({ "image/png": blobPromise })]);
+                setCopyState(button, "success");
+            } catch (error) {
+                console.error("Copy image failed", error);
+                setCopyState(button, "error");
+            } finally {
+                state.wrapper.remove();
+                activeCaptureWrapper = null;
+                button.disabled = false;
+                resetTimer = setTimeout(() => setCopyState(button, "idle"), 1800);
+            }
         });
     </script>
     """
-    components.html(controls_html.replace("__STORAGE_KEY__", storage_key), height=70)
+    safe_storage_key = re.sub(r'[^a-zA-Z0-9_-]+', '_', storage_key)
+    components.html(controls_html.replace("__STORAGE_KEY__", safe_storage_key), height=70)

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from core.api import get_member_database, get_active_exclusive_codes, fetch_exclusive_detail
 from ui.styles import GLOBAL_CSS
-from ui.components import render_event_cards
+from ui.components import render_event_cards, render_share_controls
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon="🔴")
@@ -21,8 +21,8 @@ st.markdown(
         <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
         <p class="ldp-subtitle">Live Tracker for All JKT48 Exclusive Events</p>
         <div class="credit-container">
-            <span>Developed by <a href="https://x.com/estrellawin19" target="_blank">@estrellawin19</a></span>
-            <a href="https://tako.id/Sportagame19Win" target="_blank" class="tako-btn">🐙 Support via Tako</a>
+            <span>Developed by <a href="https://x.com/estrellawin19" target="_blank" rel="noopener noreferrer">@estrellawin19</a></span>
+            <a href="https://tako.id/Sportagame19Win" target="_blank" rel="noopener noreferrer" class="tako-btn">Support via Tako</a>
         </div>
         <div class="live-badge"><span class="live-dot"></span> LIVE MONITORING</div>
     </div>
@@ -53,16 +53,16 @@ def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, a
     
     if not wr_info.get("is_live"):
         st.warning(
-            f"⚠️ **JKT48 Server is currently in Cloudflare Waiting Room / Down.** "
+            f"**JKT48 Server is currently in Cloudflare Waiting Room / Down.** "
             f"Showing last known good data backup (Last Updated: {wr_info.get('time')})."
         )
     else:
         current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S')
-        st.caption(f"🔄 **Live Data - Last Updated:** {current_time_wib} WIB")
+        st.caption(f"Live data · Updated {current_time_wib} WIB")
     # ------------------------------------------
     
     if not fresh_event_data:
-        st.warning("⏳ Waiting for data sync update...")
+        st.warning("Waiting for data sync update...")
         return
         
     total_sold = 0
@@ -70,22 +70,25 @@ def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, a
     
     for sesi in fresh_event_data.get('session', []):
         for m in sesi.get('session_detail', []):
-            sold = m.get('tickets_sold', 0)
-            avail = m.get('available_quota', 0)
+            try:
+                sold = int(m.get('tickets_sold') or 0)
+                avail = int(m.get('available_quota') or 0)
+            except (TypeError, ValueError):
+                sold, avail = 0, 0
             total_sold += sold
             sisa_kuota += avail
             
     total_tiket = total_sold + sisa_kuota
     sold_rate = (total_sold / total_tiket * 100) if total_tiket > 0 else 0.0
             
-    with st.container(border=True):
-        col_m1, col_m2, col_m3 = st.columns(3)
+    with st.container(border=True, key="summary_metrics"):
+        col_m1, col_m2, col_m3 = st.columns(3, vertical_alignment="center")
         with col_m1:
-            st.metric(label="🎟️ Total Tickets", value=f"{total_tiket:,}")
+            st.metric(label="Total Tickets", value=f"{total_tiket:,}")
         with col_m2:
-            st.metric(label="📦 Remaining", value=f"{sisa_kuota:,}")
+            st.metric(label="Remaining", value=f"{sisa_kuota:,}")
         with col_m3:
-            st.metric(label="🔥 Sold Rate", value=f"{sold_rate:.1f}%")
+            st.metric(label="Sold Rate", value=f"{sold_rate:.1f}%")
             
     # --- 3. KIRIM is_event_closed KE KOMPONEN CARD ---
     render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only, is_event_closed)
@@ -98,7 +101,7 @@ if not active_codes:
     active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
 
 active_events = []
-with st.spinner("⏳ Fetching latest JKT48 Exclusive data..."):
+with st.spinner("Fetching latest JKT48 Exclusive data..."):
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         results = executor.map(fetch_exclusive_detail, active_codes)
         for data in results:
@@ -124,13 +127,13 @@ for ev in active_events:
     ev_info = {"label": dropdown_label, "data": ev}
 
     if cat == "DIGITAL_PHOTOBOOK":
-        cat_label = "📱 Video Call"
+        cat_label = "Video Call"
     elif cat == "TWO_SHOT":
-        cat_label = "📸 2-Shot"
+        cat_label = "2-Shot"
     elif cat == "PHOTOCARD":
-        cat_label = "🤝 Meet & Greet"
+        cat_label = "Meet & Greet"
     else:
-        cat_label = "🎟️ Others"
+        cat_label = "Others"
 
     categories_dict.setdefault(cat_label, []).append(ev_info)
 
@@ -150,20 +153,20 @@ if available_categories:
         )
 
         with col_cat:
-            selected_cat = st.selectbox("🎯 Select Category:", list(available_categories.keys()))
+            selected_cat = st.selectbox("Category", list(available_categories.keys()))
 
         with col_ev:
             events_in_cat = available_categories[selected_cat]
             event_labels = [e["label"] for e in events_in_cat]
-            selected_event_label = st.selectbox("📌 Select JKT48 Event:", event_labels)
+            selected_event_label = st.selectbox("JKT48 Event", event_labels)
 
             selected_event = next(e["data"] for e in events_in_cat if e["label"] == selected_event_label)
 
         with col_search:
-            global_query = st.text_input("🔍 Search Name/Nickname...", placeholder="Type Michie, Gracie...").lower().strip()
+            global_query = st.text_input("Search member", placeholder="Michie, Gracie...").lower().strip()
             
         with col_toggle:
-            available_only = st.toggle("🟢 Available Only", value=False)
+            available_only = st.toggle("Available only", value=False)
             
     event_code = selected_event.get('code')
     
@@ -186,6 +189,16 @@ if available_categories:
     
     # Kirim raw_close_date ke dalam fragment
     live_dashboard_fragment(event_code, global_query, nickname_map, photo_map, available_only, raw_close_date)
+
+    try:
+        admin_keys = st.secrets.get("ADMIN_KEYS", [])
+    except Exception:
+        admin_keys = []
+    if isinstance(admin_keys, str):
+        admin_keys = [admin_keys]
+    access_key = st.query_params.get("akses", "")
+    if access_key and access_key in admin_keys:
+        render_share_controls(f"share_selection_{event_code}")
     
 else:
     st.error("No active Exclusive events found or failed to fetch data.")
