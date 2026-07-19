@@ -423,6 +423,14 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     padding: 12px 10px;
 }
 
+.capture-mode .c-badge {
+    display: none !important;
+}
+
+.capture-mode .c-jalur {
+    padding-inline: 0;
+}
+
 .capture-mode .c-photo {
     width: 72px !important;
     height: 72px !important;
