@@ -260,6 +260,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 }
 
 .c-photo {
+    position: relative;
     width: 72px;
     height: 72px;
     flex: 0 0 72px;
@@ -285,7 +286,16 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 .ldp-card.sold .c-photo-image,
 .ldp-card.closed .c-photo-image {
-    filter: grayscale(1) brightness(0.72) contrast(0.95);
+    filter: grayscale(1) brightness(0.58) contrast(0.9);
+}
+
+.ldp-card.sold .c-photo::after,
+.ldp-card.closed .c-photo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.34);
+    pointer-events: none;
 }
 
 .c-jalur {
