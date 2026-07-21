@@ -1,4 +1,4 @@
-﻿# ui/components.py
+# ui/components.py
 
 import streamlit as st
 import hashlib
@@ -273,10 +273,11 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
 
             safe_proxy_url = escape(proxy_url, quote=True)
             safe_photo_alt = escape(f"{member_name} JKT48 photo", quote=True)
+            inactive_photo_style = ' style="filter: grayscale(1) brightness(0.5) contrast(0.9); opacity: 0.62;"' if cls in {"sold", "closed"} else ""
             img_html = (
                 f'<div class="c-photo">'
                 f'<img class="c-photo-image" src="{safe_proxy_url}" alt="{safe_photo_alt}" '
-                f'width="180" height="180" loading="lazy">'
+                f'width="180" height="180" loading="lazy"{inactive_photo_style}>'
                 f'</div>'
             )
                                         
