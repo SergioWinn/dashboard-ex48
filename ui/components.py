@@ -1,4 +1,4 @@
-# ui/components.py
+﻿# ui/components.py
 
 import streamlit as st
 import hashlib
@@ -193,14 +193,14 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
         session_date_wib = sesi['session_date_wib']
 
         raw_label = str(sesi.get('label', 'Session'))
-        sesi_label = re.split(r'[\(·]', raw_label)[0].strip().replace("Sesi", "Session")
+        sesi_label = re.split(r'[\(Â·]', raw_label)[0].strip().replace("Sesi", "Session")
         start_time = str(sesi.get('start_time') or '')
         end_time = str(sesi.get('end_time') or '')
         time_info = f" | {start_time[:5]} - {end_time[:5]}" if start_time else ""
         session_date_label = session_date_wib.strftime('%d/%m/%Y') if session_date_wib else str(sesi.get('date') or '')[:10]
         session_identity = f"{session_date_label}|{raw_label}|{start_time}|{end_time}"
         session_share_key = f"session-{hashlib.sha1(session_identity.encode('utf-8')).hexdigest()[:12]}"
-        session_share_label = escape(f"{session_date_label} · {sesi_label}{time_info}", quote=True)
+        session_share_label = escape(f"{session_date_label} Â· {sesi_label}{time_info}", quote=True)
         display_session_label = escape(sesi_label)
         display_time_info = escape(time_info)
         
@@ -227,7 +227,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 time_str = f"<br>({time_range})" if time_range else ""
                 
                 if date_short:
-                    display_jalur = f"{escape(date_short)} · {escape(sesi_short)}{time_str}<br>{escape(jalur_label)}"
+                    display_jalur = f"{escape(date_short)} Â· {escape(sesi_short)}{time_str}<br>{escape(jalur_label)}"
                 else:
                     display_jalur = f"{escape(sesi_short)}{time_str}<br>{escape(jalur_label)}"
                 jalur_title = f"{date_short} {sesi_short} {jalur_label}"
@@ -243,9 +243,9 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             
            # --- LOGIKA TEMA CARD TERPADU (CLOSED / SOLD OUT / LOW / AVAILABLE) ---
             if is_event_closed or not is_before_deadline:
-                # TEMA CLOSED (Abu-abu mati mendominasi)
-                cls, btn_text = "closed", "CLOSED"
-                sold_percentage = 100
+                # Event closed tetap pakai komposisi sold/remaining asli supaya tidak terlihat sold out.
+                cls = "closed"
+                btn_text = "CLOSED"
                 badge_html = ""
             elif current_quota <= 0:
                 # TEMA SOLD OUT (Merah murni)
@@ -448,7 +448,7 @@ def render_share_controls(storage_key):
             </style>
             <div class="share-picker-head">
                 <div><h2>Select content to copy</h2><p>Choose sessions and members for the clipboard image.</p></div>
-                <button class="share-picker-close" aria-label="Close">×</button>
+                <button class="share-picker-close" aria-label="Close">Ã—</button>
             </div>
             <div class="share-picker-body">
                 <section class="share-picker-section">
@@ -468,7 +468,7 @@ def render_share_controls(storage_key):
         }, { once: true });
 
         function updateCount() {
-            dialog.querySelector("#share-picker-count").textContent = `${selectedSessions.size} session(s) · ${selectedMembers.size} member(s)`;
+            dialog.querySelector("#share-picker-count").textContent = `${selectedSessions.size} session(s) Â· ${selectedMembers.size} member(s)`;
             const copyAction = dialog.querySelector("#share-picker-copy");
             if (copyAction.dataset.state === "idle") {
                 const canCopy = hasSelectedCards();
@@ -599,7 +599,7 @@ def render_share_controls(storage_key):
         function setCopyState(button, state) {
             const states = {
                 idle: ["Copy selected", "Copy selected cards to clipboard"],
-                loading: ["Preparing…", "Preparing image"],
+                loading: ["Preparingâ€¦", "Preparing image"],
                 success: ["Copied", "Image copied"],
                 error: ["Copy failed", "Copy failed"]
             };
@@ -666,3 +666,6 @@ def render_share_controls(storage_key):
     """
     safe_storage_key = re.sub(r'[^a-zA-Z0-9_-]+', '_', storage_key)
     components.html(controls_html.replace("__STORAGE_KEY__", safe_storage_key), height=70)
+
+
+
