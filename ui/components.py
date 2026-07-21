@@ -599,7 +599,7 @@ def render_share_controls(storage_key):
         function setCopyState(button, state) {
             const states = {
                 idle: ["Copy selected", "Copy selected cards to clipboard"],
-                loading: ["Preparingâ€¦", "Preparing image"],
+                loading: ["Preparing...", "Preparing image"],
                 success: ["Copied", "Image copied"],
                 error: ["Copy failed", "Copy failed"]
             };
@@ -666,6 +666,7 @@ def render_share_controls(storage_key):
     """
     safe_storage_key = re.sub(r'[^a-zA-Z0-9_-]+', '_', storage_key)
     components.html(controls_html.replace("__STORAGE_KEY__", safe_storage_key), height=70)
+
 
 
 
