@@ -285,8 +285,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 .ldp-card.sold .c-photo-image,
 .ldp-card.closed .c-photo-image {
-    filter: saturate(35%);
-    opacity: 0.82;
+    filter: grayscale(1) brightness(0.72) contrast(0.95);
 }
 
 .c-jalur {
