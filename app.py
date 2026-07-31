@@ -8,14 +8,20 @@ from html import escape
 from core.api import get_active_exclusive_events, get_member_database, fetch_exclusive_detail
 from core.refresh import get_detail_refresh_interval
 from ui.styles import GLOBAL_CSS
-from ui.components import install_motion_observer, render_event_cards, render_share_controls
+from ui.components import render_event_cards, render_share_controls
+
+try:
+    from ui.components import install_motion_observer
+except ImportError:
+    install_motion_observer = None
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon="🔴")
 
 # --- 2. APPLY CSS ---
 st.markdown(GLOBAL_CSS.replace('\n', '').replace('\r', ''), unsafe_allow_html=True)
-install_motion_observer()
+if install_motion_observer:
+    install_motion_observer()
 
 # --- RENDER MAIN HEADER ---
 st.markdown(

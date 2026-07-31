@@ -342,7 +342,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             img_html = (
                 f'<div class="c-photo">'
                 f'<img class="c-photo-image" src="{safe_proxy_url}" alt="{safe_photo_alt}" '
-                f'width="180" height="180" loading="lazy">'
+                f'width="180" height="180" loading="lazy" crossorigin="anonymous">'
                 f'</div>'
             )
                                         
@@ -402,7 +402,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
     
 def render_share_controls(storage_key):
     controls_html = """
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onerror="const fallback=document.createElement('script');fallback.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';document.head.appendChild(fallback);"></script>
     <style>
         :root { --share-accent: oklch(56% 0.2 256); --share-accent-strong: oklch(48% 0.2 256); --share-ink: oklch(98.5% 0.004 250); --share-focus: oklch(18% 0.02 258); --share-shadow: oklch(24% 0.02 258 / 0.18); --share-space-xs: 8px; --ease-out: cubic-bezier(.16,1,.3,1); }
         body { margin: 0; background: transparent; display: flex; gap: var(--share-space-xs); justify-content: center; align-items: center; overflow: hidden; }
@@ -506,9 +506,14 @@ def render_share_controls(storage_key):
                 .share-picker-item input { margin-top: var(--space-3xs); accent-color: var(--dialog-accent-fill); }
                 .share-picker-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm); border-top: 1px solid var(--dialog-rule); }
                 #share-picker-count { color: var(--dialog-ink-muted); font-size: 12px; }
+                .share-picker-status { min-width: 0; }
+                #share-picker-feedback { display: block; min-height: 1lh; margin-top: var(--space-2xs); color: var(--dialog-ink-muted); font-size: 12px; }
+                #share-picker-feedback[data-tone="success"] { color: var(--dialog-accent); }
+                #share-picker-feedback[data-tone="error"] { color: var(--dialog-error); }
                 #share-picker-copy { min-width: 128px; min-height: 44px; border: 0; border-radius: var(--radius-input); background: var(--dialog-accent-fill); color: var(--dialog-accent-ink); padding: var(--space-xs) var(--space-md); font-weight: 800; cursor: pointer; white-space: nowrap; }
                 #share-picker-copy[data-state="loading"] { background: var(--dialog-warning); color: var(--dialog-ink); cursor: wait; }
                 #share-picker-copy[data-state="success"] { background: var(--dialog-accent-strong); color: var(--dialog-ink); }
+                #share-picker-copy[data-state="downloaded"], #share-picker-copy[data-state="shared"] { background: var(--dialog-accent-strong); color: var(--dialog-ink); }
                 #share-picker-copy[data-state="error"] { background: var(--dialog-error); color: var(--dialog-ink); }
                 #share-picker-copy:disabled { cursor: not-allowed; opacity: .55; }
                 #share-selection-dialog button:active { transform: translateY(1px); }
@@ -541,7 +546,7 @@ def render_share_controls(storage_key):
                     <div class="share-picker-list" id="share-member-list"></div>
                 </section>
             </div>
-            <div class="share-picker-foot"><span id="share-picker-count"></span><button id="share-picker-copy" data-state="idle">Copy selected</button></div>`;
+            <div class="share-picker-foot"><div class="share-picker-status"><span id="share-picker-count"></span><span id="share-picker-feedback" role="status" aria-live="polite"></span></div><button id="share-picker-copy" data-state="idle">Copy selected</button></div>`;
         window.parent.document.body.appendChild(dialog);
         window.addEventListener("unload", () => {
             dialog.remove();
@@ -556,6 +561,12 @@ def render_share_controls(storage_key):
                 copyAction.textContent = canCopy ? "Copy selected" : "Select items";
                 copyAction.disabled = !canCopy;
             }
+        }
+
+        function setFeedback(message = "", tone = "") {
+            const feedback = dialog.querySelector("#share-picker-feedback");
+            feedback.textContent = message;
+            feedback.dataset.tone = tone;
         }
 
         function hasSelectedCards() {
@@ -576,6 +587,7 @@ def render_share_controls(storage_key):
                 checkbox.addEventListener("change", () => {
                     if (checkbox.checked) selection.add(item.value); else selection.delete(item.value);
                     saveSelection();
+                    setFeedback();
                     updateCount();
                 });
                 const text = window.parent.document.createElement("span");
@@ -597,6 +609,7 @@ def render_share_controls(storage_key):
             const selection = button.dataset.action === "all" ? new Set(items.map(item => item.value)) : new Set();
             if (isSessions) selectedSessions = selection; else selectedMembers = selection;
             saveSelection();
+            setFeedback();
             renderPicker();
         }));
         dialog.querySelector(".share-picker-close").addEventListener("click", () => dialog.close());
@@ -629,6 +642,8 @@ def render_share_controls(storage_key):
 
         function siapkanTarget() {
             refreshData();
+            activeCaptureWrapper?.remove();
+            activeCaptureWrapper = null;
             if (!selectedSessions.size || !selectedMembers.size) {
                 renderPicker();
                 if (!dialog.open) dialog.showModal();
@@ -641,7 +656,11 @@ def render_share_controls(storage_key):
             const target = source.cloneNode(true);
             target.id = "share-capture-target";
             target.classList.add("capture-mode");
-            target.querySelectorAll("img").forEach(image => { image.loading = "eager"; });
+            target.querySelectorAll("img").forEach(image => {
+                image.loading = "eager";
+                image.decoding = "async";
+                image.crossOrigin = "anonymous";
+            });
             target.querySelectorAll(".ldp-card[data-share-session]").forEach(card => {
                 if (!selectedSessions.has(card.dataset.shareSession) || !selectedMembers.has(card.dataset.shareMember)) card.style.display = "none";
             });
@@ -678,17 +697,19 @@ def render_share_controls(storage_key):
             return { target, wrapper, background };
         }
 
-        function setCopyState(button, state) {
+        function setCopyState(button, state, detail = "") {
             const states = {
                 idle: ["Copy selected", "Copy selected cards to clipboard"],
-                loading: ["Preparing...", "Preparing image"],
+                loading: ["Preparing…", "Preparing image"],
                 success: ["Copied", "Image copied"],
-                error: ["Copy failed", "Copy failed"]
+                downloaded: ["Downloaded", "PNG image downloaded"],
+                shared: ["Shared", "Image shared"],
+                error: ["Capture failed", "Image capture failed"]
             };
             const [label, accessibleLabel] = states[state];
             button.textContent = label;
-            button.setAttribute("aria-label", accessibleLabel);
-            button.title = accessibleLabel;
+            button.setAttribute("aria-label", detail || accessibleLabel);
+            button.title = detail || accessibleLabel;
             button.dataset.state = state;
             button.disabled = state === "loading" || (state === "idle" && !hasSelectedCards());
             if (state === "idle" && button.disabled) button.textContent = "Select items";
@@ -700,6 +721,100 @@ def render_share_controls(storage_key):
             });
         }
 
+        function withTimeout(promise, timeoutMs) {
+            return Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Asset timeout")), timeoutMs)),
+            ]);
+        }
+
+        async function waitForCaptureAssets(target) {
+            const fallbackPixel = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+            const fontPromise = window.parent.document.fonts?.ready ?? Promise.resolve();
+            await withTimeout(fontPromise, 4000).catch(() => undefined);
+
+            await Promise.all([...target.querySelectorAll("img")].map(async image => {
+                try {
+                    if (!image.complete) {
+                        await withTimeout(new Promise((resolve, reject) => {
+                            image.addEventListener("load", resolve, { once: true });
+                            image.addEventListener("error", reject, { once: true });
+                        }), 6000);
+                    }
+                    if (image.decode) await withTimeout(image.decode(), 3000);
+                    if (!image.naturalWidth) throw new Error("Empty image");
+                } catch {
+                    image.removeAttribute("crossorigin");
+                    image.src = fallbackPixel;
+                }
+            }));
+
+            await new Promise(resolve => window.parent.requestAnimationFrame(() => {
+                window.parent.requestAnimationFrame(resolve);
+            }));
+        }
+
+        async function getCaptureLibrary() {
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+                if (window.html2canvas) return window.html2canvas;
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+            throw new Error("Capture library failed to load");
+        }
+
+        async function renderCaptureBlob(state) {
+            const html2canvas = await getCaptureLibrary();
+            await waitForCaptureAssets(state.target);
+
+            const rect = state.target.getBoundingClientRect();
+            const width = Math.max(1, Math.ceil(rect.width));
+            const height = Math.max(1, Math.ceil(rect.height));
+            const maxPixels = 12000000;
+            const maxDimension = 16384;
+            const constrainedScale = Math.min(
+                1.5,
+                Math.sqrt(maxPixels / (width * height)),
+                maxDimension / Math.max(width, height),
+            );
+            if (constrainedScale < 0.25) throw new Error("Capture selection is too large");
+            const scale = Math.max(0.25, constrainedScale);
+            const canvas = await html2canvas(state.target, {
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: state.background,
+                imageTimeout: 8000,
+                logging: false,
+                scale,
+                scrollX: 0,
+                scrollY: 0,
+                windowWidth: width,
+                windowHeight: height,
+            });
+            return canvasToBlob(canvas);
+        }
+
+        function downloadBlob(blob) {
+            const urlApi = window.parent.URL || URL;
+            const objectUrl = urlApi.createObjectURL(blob);
+            const link = window.parent.document.createElement("a");
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+            link.href = objectUrl;
+            link.download = `jkt48-exclusive-${timestamp}.png`;
+            link.style.display = "none";
+            window.parent.document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => urlApi.revokeObjectURL(objectUrl), 1000);
+        }
+
+        function captureErrorMessage(error) {
+            if (error?.name === "SecurityError") return "A photo blocked image capture. Reload the page and try again.";
+            if (String(error?.message).includes("library")) return "Capture tools did not load. Reload the page and try again.";
+            if (String(error?.message).includes("too large")) return "The selection is too large. Select fewer sessions or members and try again.";
+            if (String(error?.message).includes("conversion")) return "The image was too large to convert. Select fewer cards and try again.";
+            return "The image could not be created. Select fewer cards or reload the page.";
+        }
+
         dialog.querySelector("#share-picker-copy").addEventListener("click", async function() {
             const button = this;
             const state = siapkanTarget();
@@ -708,40 +823,54 @@ def render_share_controls(storage_key):
                 resetTimer = null;
             }
             if (!state) {
-                setCopyState(button, "error");
+                const message = "No cards match the current session and member selection.";
+                setCopyState(button, "error", message);
+                setFeedback(message, "error");
                 resetTimer = setTimeout(() => setCopyState(button, "idle"), 1800);
                 return;
             }
             setCopyState(button, "loading");
+            setFeedback("Preparing selected cards…");
             try {
-                const clipboard = window.parent.navigator.clipboard || navigator.clipboard;
-                const ClipboardItemClass = window.parent.ClipboardItem || window.ClipboardItem;
-                if (!window.html2canvas || !clipboard?.write || !ClipboardItemClass) {
-                    throw new Error("Image clipboard is not supported in this browser");
+                const blobPromise = renderCaptureBlob(state);
+                const clipboard = navigator.clipboard || window.parent.navigator.clipboard;
+                const ClipboardItemClass = window.ClipboardItem || window.parent.ClipboardItem;
+                const supportsPng = !ClipboardItemClass?.supports || ClipboardItemClass.supports("image/png");
+                let clipboardError = null;
+
+                if (clipboard?.write && ClipboardItemClass && supportsPng) {
+                    try {
+                        await clipboard.write([new ClipboardItemClass({ "image/png": blobPromise })]);
+                        setCopyState(button, "success");
+                        setFeedback("Copied to clipboard.", "success");
+                    } catch (error) {
+                        clipboardError = error;
+                    }
+                } else {
+                    clipboardError = new Error("Image clipboard is not supported");
                 }
-                const blobPromise = (async () => {
-                    await new Promise(resolve => setTimeout(resolve, 80));
-                    const canvas = await window.html2canvas(state.target, {
-                        useCORS: true,
-                        backgroundColor: state.background,
-                        scale: 2,
-                    });
-                    return canvasToBlob(canvas);
-                })();
-                await clipboard.write([new ClipboardItemClass({ "image/png": blobPromise })]);
-                setCopyState(button, "success");
+
+                if (clipboardError) {
+                    const blob = await blobPromise;
+                    downloadBlob(blob);
+                    setCopyState(button, "downloaded");
+                    setFeedback("Clipboard permission was unavailable, so the PNG was downloaded instead.", "success");
+                    console.warn("Clipboard write unavailable; downloaded PNG instead", clipboardError);
+                }
             } catch (error) {
                 console.error("Copy image failed", error);
-                setCopyState(button, "error");
+                const message = captureErrorMessage(error);
+                setCopyState(button, "error", message);
+                setFeedback(message, "error");
             } finally {
                 state.wrapper.remove();
                 activeCaptureWrapper = null;
                 button.disabled = false;
-                const didCopy = button.dataset.state === "success";
+                const didComplete = ["success", "downloaded", "shared"].includes(button.dataset.state);
                 resetTimer = setTimeout(() => {
                     setCopyState(button, "idle");
-                    if (didCopy) dialog.close();
-                }, didCopy ? 900 : 1800);
+                    if (didComplete) dialog.close();
+                }, didComplete ? 1400 : 3000);
             }
         });
     </script>
