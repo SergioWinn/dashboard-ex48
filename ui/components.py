@@ -209,11 +209,11 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             st.success(f"Showing all schedules for **'{search_query.title()}'** across dates.")
     else:
         if len(unique_dates) > 0:
-            st.markdown(f"**Event date:** {unique_dates[0] if len(unique_dates) == 1 else ''}")
             if len(unique_dates) > 1:
                 selected_date = st.radio("Select date", unique_dates, horizontal=True, key=f"filter_date_{event_id}")
             else:
                 selected_date = unique_dates[0]
+                st.markdown(f"**Event date:** {selected_date}")
             active_sessions = sessions_by_date.get(selected_date, [])
         else:
             active_sessions = []

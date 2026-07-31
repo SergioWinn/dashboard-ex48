@@ -287,13 +287,24 @@ div[data-baseweb="select"][aria-disabled="true"] > div {
 
 div[class*="st-key-filter_date_"] [role="radiogroup"] {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xs) var(--space-md);
+    flex-wrap: nowrap;
+    gap: var(--space-md);
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-bottom: var(--space-xs);
+    scroll-snap-type: inline proximity;
+    scrollbar-width: none;
+}
+
+div[class*="st-key-filter_date_"] [role="radiogroup"]::-webkit-scrollbar {
+    display: none;
 }
 
 div[class*="st-key-filter_date_"] [role="radiogroup"] label {
+    flex: 0 0 auto;
     min-height: 44px;
     align-items: center;
+    scroll-snap-align: start;
     white-space: nowrap;
 }
 
@@ -318,14 +329,14 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-sm);
-    margin-bottom: var(--space-xl);
+    margin-bottom: var(--space-lg);
 }
 
 .ldp-card {
     position: relative;
     min-width: 0;
-    min-height: 196px;
-    padding: var(--space-md);
+    min-height: 0;
+    padding: var(--space-sm);
     border: 1px solid var(--color-rule);
     border-radius: var(--radius-card);
     background: var(--color-surface);
@@ -381,16 +392,16 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 .c-identity {
     display: grid;
-    grid-template-columns: 3.5rem minmax(0, 1fr);
+    grid-template-columns: 3rem minmax(0, 1fr);
     align-items: center;
     gap: var(--space-sm);
-    margin-block: var(--space-sm);
+    margin-block: var(--space-xs);
 }
 
 .c-photo {
-    width: 56px;
-    height: 56px;
-    flex: 0 0 56px;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
     aspect-ratio: 1 / 1;
     margin: 0;
     border: 1px solid var(--color-rule-strong);
@@ -454,18 +465,23 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 .c-card-foot {
     width: 100%;
-    margin-top: auto;
+    margin-top: var(--space-xs);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-sm);
 }
 
 .c-stats {
     width: 100%;
-    margin-bottom: var(--space-xs);
+    margin-bottom: 0;
     display: flex;
     justify-content: flex-start;
     color: var(--color-muted);
     font-family: var(--font-body);
     font-size: var(--text-xs);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .c-stats b { margin-left: 0.2rem; font-weight: 800; }
@@ -621,11 +637,17 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 }
 
 @media (min-width: 40rem) {
+    div[class*="st-key-filter_date_"] [role="radiogroup"] { flex-wrap: wrap; overflow-x: visible; padding-bottom: 0; scroll-snap-type: none; }
     .st-key-event_filters [data-testid="stHorizontalBlock"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .st-key-summary_metrics [data-testid="stHorizontalBlock"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .st-key-summary_metrics [data-testid="stMetric"] { min-height: 7rem; border-top: 0; border-inline-start: 1px solid var(--color-rule); }
     .st-key-summary_metrics [data-testid="stColumn"]:first-child [data-testid="stMetric"] { border-inline-start: 0; }
-    .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: var(--space-xl); }
+    .ldp-card { min-height: 196px; padding: var(--space-md); }
+    .c-identity { grid-template-columns: 3.5rem minmax(0, 1fr); margin-block: var(--space-sm); }
+    .c-photo { width: 56px; height: 56px; flex-basis: 56px; }
+    .c-card-foot { display: block; margin-top: auto; }
+    .c-stats { margin-bottom: var(--space-xs); }
 }
 
 @media (min-width: 48rem) {
