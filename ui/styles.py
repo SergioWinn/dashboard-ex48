@@ -589,8 +589,9 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 }
 
 .capture-mode .ldp-card {
-    min-height: 210px;
-    padding: var(--space-sm) var(--space-xs);
+    min-height: 190px;
+    padding: var(--space-xs);
+    text-align: center;
 }
 
 .capture-mode .c-badge {
@@ -599,28 +600,40 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 .capture-mode .c-jalur {
     padding-inline: 0;
+    text-align: center;
 }
 
 .capture-mode .c-photo {
-    width: 64px !important;
-    height: 64px !important;
-    flex-basis: 64px !important;
+    width: 56px !important;
+    height: 56px !important;
+    flex-basis: 56px !important;
 }
 
 .capture-mode .c-identity {
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
     justify-items: center;
-    gap: var(--space-xs);
+    gap: var(--space-2xs);
+    margin-block: var(--space-xs);
 }
 
 .capture-mode .c-member {
     min-height: 2.4em;
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     line-height: 1.2;
     overflow-wrap: normal;
     text-align: center;
     word-break: normal;
+}
+
+.capture-mode .c-stats {
+    justify-content: center;
+    margin-bottom: var(--space-xs);
+}
+
+.capture-mode .c-card-foot {
+    display: block;
+    margin-top: auto;
 }
 
 .capture-mode .c-photo-image {
