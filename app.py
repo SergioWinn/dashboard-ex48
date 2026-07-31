@@ -197,12 +197,7 @@ category_filters = dict(sorted(
     key=lambda item: max(event["data"].get("valid_date_from", "") for event in item[1]),
     reverse=True,
 ))
-all_events = sorted(
-    (event for events in category_filters.values() for event in events),
-    key=lambda event: event["data"].get("valid_date_from", ""),
-    reverse=True,
-)
-available_categories = {"All Events": all_events, **category_filters} if all_events else {}
+available_categories = category_filters
 
 if available_categories:
     with st.container(border=False, key="event_filters"):
@@ -212,7 +207,6 @@ if available_categories:
             selected_cat = st.selectbox(
                 "Category",
                 list(available_categories.keys()),
-                format_func=lambda category: f"{category} ({len(available_categories[category])})",
             )
 
         with col_ev:
