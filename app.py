@@ -121,18 +121,34 @@ for ev in active_events:
 
     categories_dict.setdefault(cat_label, []).append(ev_info)
 
-available_categories = dict(sorted(
+for events in categories_dict.values():
+    events.sort(
+        key=lambda event: event["data"].get("valid_date_from", ""),
+        reverse=True,
+    )
+
+category_filters = dict(sorted(
     categories_dict.items(),
     key=lambda item: max(event["data"].get("valid_date_from", "") for event in item[1]),
     reverse=True,
 ))
+all_events = sorted(
+    (event for events in category_filters.values() for event in events),
+    key=lambda event: event["data"].get("valid_date_from", ""),
+    reverse=True,
+)
+available_categories = {"All Events": all_events, **category_filters} if all_events else {}
 
 if available_categories:
     with st.container(border=True, key="event_filters"):
         col_cat, col_ev, col_search, col_toggle = st.columns([1.3, 2.5, 1.2, 1.2], vertical_alignment="bottom")
 
         with col_cat:
-            selected_cat = st.selectbox("Category", list(available_categories.keys()))
+            selected_cat = st.selectbox(
+                "Category",
+                list(available_categories.keys()),
+                format_func=lambda category: f"{category} ({len(available_categories[category])})",
+            )
 
         with col_ev:
             events_in_cat = available_categories[selected_cat]
