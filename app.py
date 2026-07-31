@@ -80,7 +80,7 @@ def live_dashboard_fragment(
     wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
     now_wib = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=7)
     refresh_interval = get_detail_refresh_interval(event_data, wr_info.get("is_live", True), now_wib)
-    has_event_detail = "session" in event_data
+    has_event_detail = isinstance(event_data.get("session"), list)
 
     if not has_event_detail:
         source_class = "is-unavailable"
@@ -132,7 +132,7 @@ def live_dashboard_fragment(
             f"Event sessions are unavailable ({wr_info.get('reason', 'Waiting Room / upstream down')}). "
             f"No cached session data exists for this event yet. Retrying every {refresh_interval}s."
         )
-    else:
+    elif not has_event_detail:
         st.warning(
             f"Session and ticket details are unavailable. Showing event list information only; "
             f"retrying every {refresh_interval}s."
