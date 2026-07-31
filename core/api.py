@@ -4,12 +4,13 @@ import requests
 import streamlit as st
 import os
 import json
+import time
 from datetime import datetime, timedelta
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Referer": "https://jkt48.com/",
-    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+    "Accept": "application/json, text/plain, */*"
 }
 
 @st.cache_data(ttl=3600)
@@ -26,7 +27,7 @@ def get_member_database():
                     name = member.get("name", "").strip().lower()
                     nickname = member.get("nickname", "").strip().lower()
                     photo = member.get("photo", "")
-                    
+
                     if nickname and name:
                         nickname_map[nickname] = name
                     if name and photo:
@@ -57,33 +58,33 @@ def fetch_exclusive_detail(code):
     now_wib = datetime.utcnow() + timedelta(hours=7)
     waktu_sekarang = now_wib.strftime('%d/%m/%Y %H:%M:%S WIB')
 
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=5)
-        if r.status_code == 200:
-            res_json = r.json()
-            data = res_json.get('data')
-            
-            if data:
-                cache_payload = {
-                    "last_updated": waktu_sekarang,
-                    "data": data
-                }
-                with open(cache_file, "w") as f:
-                    json.dump(cache_payload, f)
-                
-                st.session_state[f"wr_status_{code}"] = {"is_live": True, "time": waktu_sekarang}
-                return data
-                
-    except Exception as e:
-        pass
+    for timeout in (8, 12):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=timeout)
+            if r.status_code == 200:
+                res_json = r.json()
+                data = res_json.get('data')
+
+                if data:
+                    cache_payload = {
+                        "last_updated": waktu_sekarang,
+                        "data": data
+                    }
+                    with open(cache_file, "w") as f:
+                        json.dump(cache_payload, f)
+
+                    st.session_state[f"wr_status_{code}"] = {"is_live": True, "time": waktu_sekarang}
+                    return data
+        except Exception:
+            time.sleep(0.4)
 
     if os.path.exists(cache_file):
         try:
             with open(cache_file, "r") as f:
                 cache_payload = json.load(f)
-            
+
             st.session_state[f"wr_status_{code}"] = {
-                "is_live": False, 
+                "is_live": False,
                 "time": cache_payload.get("last_updated", "Unknown")
             }
             return cache_payload.get("data")
