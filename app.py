@@ -1,11 +1,35 @@
 # app.py
 
+import requests
 import streamlit as st
 from datetime import datetime, timedelta
 
-from core.api import get_member_database, get_active_exclusive_events, fetch_exclusive_detail
+from core.api import get_member_database, fetch_exclusive_detail
 from ui.styles import GLOBAL_CSS
 from ui.components import render_event_cards, render_share_controls
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": "https://jkt48.com/",
+    "Accept": "application/json, text/plain, */*"
+}
+
+
+@st.cache_data(ttl=300)
+def get_active_exclusive_events():
+    url = "https://jkt48.com/api/v1/exclusives?lang=id"
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        if response.status_code == 200:
+            res_json = response.json()
+            if res_json.get("status") is True and "data" in res_json:
+                data_content = res_json["data"]
+                event_list = data_content if isinstance(data_content, list) else data_content.get("data", [])
+                return [ev for ev in event_list if ev.get("code")]
+    except:
+        pass
+    return []
+
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon="🔴")
@@ -29,7 +53,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 3. STREAMLIT FRAGMENT: ISOLATED AUTO-REFRESH ---
+
 @st.fragment(run_every=5)
 def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_map, available_only, raw_close_date):
     event_code = selected_event.get('code')
@@ -64,7 +88,6 @@ def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_ma
 
     total_sold = 0
     sisa_kuota = 0
-
     for sesi in event_data.get('session', []):
         for m in sesi.get('session_detail', []):
             try:
@@ -89,7 +112,7 @@ def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_ma
 
     render_event_cards(event_data, search_query, nickname_map, photo_map, available_only, is_event_closed)
 
-# --- 4. MAIN LAYOUT & DISCOVERY ---
+
 nickname_map, photo_map = get_member_database()
 active_events = get_active_exclusive_events()
 
@@ -122,18 +145,13 @@ for ev in active_events:
 
 available_categories = dict(sorted(
     categories_dict.items(),
-    key=lambda item: max(
-        event["data"].get('valid_date_from', '') for event in item[1]
-    ),
+    key=lambda item: max(event["data"].get('valid_date_from', '') for event in item[1]),
     reverse=True,
 ))
 
 if available_categories:
     with st.container(border=True, key="event_filters"):
-        col_cat, col_ev, col_search, col_toggle = st.columns(
-            [1.3, 2.5, 1.2, 1.2],
-            vertical_alignment="bottom",
-        )
+        col_cat, col_ev, col_search, col_toggle = st.columns([1.3, 2.5, 1.2, 1.2], vertical_alignment="bottom")
 
         with col_cat:
             selected_cat = st.selectbox("Category", list(available_categories.keys()))
