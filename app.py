@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from html import escape
 
 from core.api import get_active_exclusive_events, get_member_database, fetch_exclusive_detail
-from core.refresh import get_detail_refresh_interval
+from core.refresh import get_detail_refresh_interval, get_sales_window
 from ui.styles import GLOBAL_CSS
 from ui.components import render_event_cards, render_share_controls
 
@@ -14,6 +14,12 @@ try:
     from ui.components import install_motion_observer
 except ImportError:
     install_motion_observer = None
+
+CATEGORY_LABELS = {
+    "DIGITAL_PHOTOBOOK": "Video Call",
+    "TWO_SHOT": "2-Shot",
+    "PHOTOCARD": "Meet & Greet",
+}
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon="🔴")
@@ -45,7 +51,6 @@ def live_dashboard_fragment(
     nickname_map,
     photo_map,
     available_only,
-    raw_close_date,
     current_event_codes,
 ):
     refreshed_events = get_active_exclusive_events()
@@ -77,19 +82,12 @@ def live_dashboard_fragment(
     refresh_interval = get_detail_refresh_interval(event_data, wr_info.get("is_live", True), now_wib)
     has_event_detail = "session" in event_data
 
-    if not raw_close_date:
-        for sales_period in event_data.get("sales_period", []):
-            if sales_period.get("label") == "General":
-                raw_close_date = sales_period.get("end_date")
-                break
-    if not raw_close_date and event_data.get("valid_date_to"):
-        raw_close_date = event_data["valid_date_to"].split(".")[0]
-
     source_class = "is-live" if wr_info.get("is_live") else "is-cached"
     source_label = "LIVE API" if wr_info.get("is_live") else "CACHED DATA"
     sync_label = wr_info.get("time") or "Waiting for first sync"
     event_title = escape(str(event_data.get("title", "Event")))
-    event_category = escape(str(event_data.get("category", "-")).replace("_", " "))
+    raw_category = str(event_data.get("category", "-"))
+    event_category = escape(CATEGORY_LABELS.get(raw_category, raw_category.replace("_", " ")))
     event_price = int(event_data.get("default_price") or 0)
     st.markdown(
         f"""
@@ -108,24 +106,16 @@ def live_dashboard_fragment(
         unsafe_allow_html=True,
     )
 
-    is_event_closed = False
-    if raw_close_date:
-        try:
-            dt_close_wib = datetime.strptime(raw_close_date, "%Y-%m-%dT%H:%M:%S")
-            if now_wib >= dt_close_wib:
-                is_event_closed = True
-        except Exception:
-            pass
+    _, close_date = get_sales_window(event_data)
+    is_event_closed = bool(close_date and now_wib >= close_date)
 
-    if has_event_detail and wr_info.get("is_live"):
-        pass
-    elif has_event_detail:
+    if has_event_detail and not wr_info.get("is_live"):
         st.warning(
             f"Live API unavailable ({wr_info.get('reason', 'Waiting Room / upstream down')}). "
             f"Showing last known good data ({wr_info.get('time')}). "
             f"Retrying every {refresh_interval}s."
         )
-    elif not wr_info.get("is_live"):
+    elif not has_event_detail and not wr_info.get("is_live"):
         st.warning(
             f"**JKT48 Server is currently in Cloudflare Waiting Room / Down.** "
             f"Showing last known good data backup (Last Updated: {wr_info.get('time')})."
@@ -152,6 +142,7 @@ def live_dashboard_fragment(
     sold_rate = (total_sold / total_tiket * 100) if total_tiket > 0 else 0.0
 
     with st.container(border=False, key="summary_metrics"):
+        st.markdown('<div class="metrics-scope">Entire event totals</div>', unsafe_allow_html=True)
         col_m1, col_m2, col_m3 = st.columns(3, vertical_alignment="center")
         with col_m1:
             st.metric(label="Total Tickets", value=f"{total_tiket:,}")
@@ -182,14 +173,7 @@ for ev in active_events:
     dropdown_label = f"{open_date_str}{title}"
     ev_info = {"label": dropdown_label, "data": ev}
 
-    if cat == "DIGITAL_PHOTOBOOK":
-        cat_label = "Video Call"
-    elif cat == "TWO_SHOT":
-        cat_label = "2-Shot"
-    elif cat == "PHOTOCARD":
-        cat_label = "Meet & Greet"
-    else:
-        cat_label = "Others"
+    cat_label = CATEGORY_LABELS.get(cat, "Others")
 
     categories_dict.setdefault(cat_label, []).append(ev_info)
 
@@ -208,7 +192,7 @@ available_categories = category_filters
 
 if available_categories:
     with st.container(border=False, key="event_filters"):
-        col_cat, col_ev, col_search, col_toggle = st.columns([1.3, 2.5, 1.2, 1.2], vertical_alignment="bottom")
+        col_cat, col_ev, col_search, col_toggle = st.columns(4, vertical_alignment="bottom")
 
         with col_cat:
             selected_cat = st.selectbox(
@@ -218,9 +202,13 @@ if available_categories:
 
         with col_ev:
             events_in_cat = available_categories[selected_cat]
-            event_labels = [e["label"] for e in events_in_cat]
-            selected_event_label = st.selectbox("JKT48 Event", event_labels)
-            selected_event = next(e["data"] for e in events_in_cat if e["label"] == selected_event_label)
+            events_by_code = {event["data"]["code"]: event for event in events_in_cat}
+            selected_event_code = st.selectbox(
+                "Event",
+                list(events_by_code),
+                format_func=lambda code: events_by_code[code]["label"],
+            )
+            selected_event = events_by_code[selected_event_code]["data"]
 
         with col_search:
             global_query = st.text_input("Search member", placeholder="Michie, Gracie…").lower().strip()
@@ -228,22 +216,12 @@ if available_categories:
         with col_toggle:
             available_only = st.toggle("Available only", value=False)
 
-    raw_close_date = None
-    for sales_period in selected_event.get("sales_period", []):
-        if sales_period.get("label") == "General":
-            raw_close_date = sales_period.get("end_date")
-            break
-
-    if not raw_close_date and selected_event.get("valid_date_to"):
-        raw_close_date = selected_event.get("valid_date_to").split(".")[0]
-
     live_dashboard_fragment(
         selected_event,
         global_query,
         nickname_map,
         photo_map,
         available_only,
-        raw_close_date,
         tuple(event.get("code") for event in active_events if event.get("code")),
     )
 

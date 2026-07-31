@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 ACTIVE_REFRESH_SECONDS = 5
 RECOVERY_REFRESH_SECONDS = 15
@@ -9,7 +9,9 @@ def _parse_datetime(value):
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "").split(".")[0])
+        is_utc = str(value).endswith("Z")
+        parsed = datetime.fromisoformat(str(value).replace("Z", "").split(".")[0])
+        return parsed + timedelta(hours=7) if is_utc else parsed
     except (TypeError, ValueError):
         return None
 

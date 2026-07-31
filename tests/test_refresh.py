@@ -52,6 +52,23 @@ class DetailRefreshIntervalTest(unittest.TestCase):
 
         self.assertEqual(interval, 15)
 
+    def test_utc_valid_date_to_is_converted_to_wib(self):
+        event = {"valid_date_to": "2026-08-01T10:00:00.000Z"}
+
+        before_close = get_detail_refresh_interval(
+            event,
+            True,
+            datetime(2026, 8, 1, 16, 59, 0),
+        )
+        after_close = get_detail_refresh_interval(
+            event,
+            True,
+            datetime(2026, 8, 1, 17, 0, 0),
+        )
+
+        self.assertEqual(before_close, 5)
+        self.assertEqual(after_close, 60)
+
 
 if __name__ == "__main__":
     unittest.main()

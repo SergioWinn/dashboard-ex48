@@ -25,8 +25,9 @@ body,
 .block-container {
     width: 100%;
     max-width: 1480px;
-    padding-block: var(--space-lg) var(--space-2xl);
-    padding-inline: max(clamp(var(--space-md), 3vw, var(--space-xl)), env(safe-area-inset-left), env(safe-area-inset-right));
+    padding-top: var(--space-lg);
+    padding-inline-start: max(clamp(var(--space-md), 3vw, var(--space-xl)), env(safe-area-inset-left));
+    padding-inline-end: max(clamp(var(--space-md), 3vw, var(--space-xl)), env(safe-area-inset-right));
     padding-bottom: max(var(--space-2xl), env(safe-area-inset-bottom));
 }
 
@@ -95,9 +96,8 @@ body,
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-md);
-    margin-top: var(--space-xl);
+    margin-top: var(--space-lg);
     padding-block: var(--space-lg) var(--space-md);
-    border-top: 1px solid var(--color-rule);
 }
 
 .event-index-head h2 {
@@ -215,6 +215,15 @@ body,
     text-transform: uppercase;
 }
 
+.metrics-scope {
+    margin: var(--space-sm) var(--space-md) 0;
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
 .stApp div[data-baseweb="select"],
 .stApp div[data-baseweb="select"] > div,
 [data-testid="stTextInput"] input {
@@ -322,7 +331,6 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     color: var(--color-muted);
     font-size: var(--text-xs);
     font-weight: 500;
-    opacity: 0.58;
 }
 
 .cards-grid {
@@ -353,12 +361,6 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     transition: transform var(--dur-micro) var(--ease-out);
 }
 
-.purchase-card .c-jalur,
-.purchase-card .c-member,
-.purchase-card .c-stats {
-    color: inherit !important;
-}
-
 .ldp-card.avail { background: var(--color-paper); }
 .ldp-card.warn { background: var(--color-warning-soft); }
 .ldp-card.sold { background: var(--color-danger-soft); }
@@ -368,10 +370,6 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 .tako-btn:focus-visible {
     outline: 3px solid var(--color-focus);
     outline-offset: 3px;
-}
-
-.c-badge {
-    display: none;
 }
 
 .c-identity {
@@ -386,7 +384,6 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 .c-photo {
     width: 56px;
     height: 56px;
-    flex: 0 0 56px;
     aspect-ratio: 1 / 1;
     margin: 0;
     border: 1px solid var(--color-rule-strong);
@@ -407,6 +404,14 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     object-position: center top;
 }
 
+.c-photo-placeholder {
+    background: var(--color-paper-3);
+    color: var(--color-muted);
+    font-family: var(--font-display);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
 .ldp-card.sold .c-photo-image,
 .ldp-card.closed .c-photo-image {
     filter: grayscale(1) brightness(0.72) contrast(0.95);
@@ -418,14 +423,12 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     min-height: 1.25rem;
     padding-inline: 0;
     overflow: hidden;
-    color: inherit;
     font-family: var(--font-body);
     color: var(--color-muted);
-    font-size: 0.625rem;
+    font-size: var(--text-xs);
     font-weight: 500;
     letter-spacing: 0.05em;
     line-height: 1.25;
-    opacity: 0.62;
     text-overflow: ellipsis;
     text-align: center;
     text-transform: uppercase;
@@ -481,7 +484,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     overflow: hidden;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
 }
 
 .c-prog-fill {
@@ -500,27 +503,21 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 .c-prog-text {
     position: relative;
     z-index: 1;
+    min-width: min(6.5rem, 78%);
+    min-height: 30px;
+    margin-left: auto;
+    padding-inline: var(--space-xs);
+    background: var(--color-graphite);
     color: var(--color-graphite-ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-family: var(--font-body);
-    font-size: 0.625rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     letter-spacing: 0.05em;
-    text-shadow: 0 1px 2px var(--color-text-shadow);
-    white-space: nowrap;
-}
-
-.ldp-card.avail .c-prog-text {
-    color: var(--color-status-success-ink);
-}
-
-.ldp-card.warn .c-prog-text {
-    color: var(--color-status-warning-ink);
     text-shadow: none;
-}
-
-.ldp-card.sold .c-prog-text,
-.ldp-card.closed .c-prog-text {
-    color: var(--color-on-status);
+    white-space: nowrap;
 }
 
 /* Share capture banner and fixed export layout */
@@ -528,7 +525,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     padding: var(--space-md);
     border-radius: var(--radius-md);
     background: var(--color-accent-strong);
-    color: var(--color-on-status);
+    color: var(--color-accent-ink);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -560,11 +557,12 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 .sb-left p { margin: 0; font-size: 0.72rem; font-weight: 600; }
 .sb-right { text-align: right; }
 .sb-time { font-size: 0.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.sb-wm { margin-top: var(--space-2xs); font-size: 0.625rem; font-weight: 700; letter-spacing: 0.04em; }
+.sb-wm { margin-top: var(--space-2xs); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.04em; }
 
 .capture-mode {
     width: 1080px !important;
     padding: var(--space-md) !important;
+    box-sizing: border-box;
 }
 
 .capture-mode .cards-grid {
@@ -579,10 +577,6 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     text-align: center;
 }
 
-.capture-mode .c-badge {
-    display: none !important;
-}
-
 .capture-mode .c-jalur {
     padding-inline: 0;
     text-align: center;
@@ -591,7 +585,6 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 .capture-mode .c-photo {
     width: 56px !important;
     height: 56px !important;
-    flex-basis: 56px !important;
 }
 
 .capture-mode .c-identity {
@@ -609,6 +602,11 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     overflow-wrap: normal;
     text-align: center;
     word-break: normal;
+}
+
+.is-search-mode .c-jalur {
+    min-height: 3.5rem;
+    white-space: normal;
 }
 
 .capture-mode .c-stats {

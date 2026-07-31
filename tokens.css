@@ -2,7 +2,7 @@
  * genre: modern-minimal · macrostructure: Ecosystem Index · theme: Cobalt
  * nav: N9 · footer: Ft2 · tone: technical · anchor hue: 256
  */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
 
 :root {
     --color-paper: light-dark(oklch(98.5% 0.004 250), oklch(14% 0.012 258));
@@ -15,13 +15,11 @@
     --color-rule-strong: light-dark(oklch(72% 0.022 255), oklch(44% 0.02 257));
     --color-accent: light-dark(oklch(56% 0.2 256), oklch(68% 0.16 256));
     --color-accent-strong: light-dark(oklch(48% 0.2 256), oklch(76% 0.13 256));
-    --color-accent-soft: light-dark(oklch(94% 0.035 256), oklch(26% 0.05 256));
     --color-accent-ink: light-dark(oklch(98.5% 0.004 250), oklch(16% 0.018 258));
     --color-focus: light-dark(oklch(48% 0.2 256), oklch(78% 0.14 256));
     --color-success: light-dark(oklch(56% 0.15 155), oklch(66% 0.13 155));
     --color-success-soft: light-dark(oklch(94% 0.035 155), oklch(25% 0.045 155));
     --color-success-ink: light-dark(oklch(14% 0.045 155), oklch(92% 0.01 155));
-    --color-status-success-ink: oklch(14% 0.045 155);
     --color-warning: light-dark(oklch(78% 0.15 82), oklch(74% 0.13 82));
     --color-warning-soft: light-dark(oklch(95% 0.035 82), oklch(26% 0.045 82));
     --color-warning-ink: light-dark(oklch(25% 0.045 82), oklch(92% 0.012 82));
@@ -38,9 +36,7 @@
     --color-shadow: light-dark(oklch(24% 0.02 258 / 0.1), oklch(5% 0.01 258 / 0.36));
     --color-surface: var(--color-paper-2);
     --color-surface-raised: var(--color-paper-3);
-    --color-on-status: var(--color-graphite-ink);
     --color-photo: var(--color-paper);
-    --color-text-shadow: var(--color-overlay);
 
     --font-display: "Space Grotesk", sans-serif;
     --font-body: "Inter", sans-serif;
@@ -54,35 +50,21 @@
     --space-lg: 1.5rem;
     --space-xl: 2.5rem;
     --space-2xl: 4rem;
-    --space-3xl: 6rem;
 
     --text-xs: 0.75rem;
     --text-sm: 0.875rem;
     --text-base: 1rem;
     --text-md: 1.25rem;
-    --text-lg: 1.5625rem;
     --text-xl: 1.953rem;
     --text-2xl: 2.441rem;
     --text-display: clamp(2rem, 6vw, 3.25rem);
 
     --radius-input: 6px;
     --radius-card: 10px;
-    --radius-pill: 999px;
-    --radius-sm: var(--radius-input);
     --radius-md: var(--radius-card);
-    --rule-thin: 1px;
 
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
-    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
     --dur-micro: 100ms;
     --dur-short: 180ms;
-    --dur-long: 300ms;
 
-    --z-base: 1;
-    --z-raised: 10;
-    --z-dropdown: 100;
-    --z-sticky: 200;
-    --z-modal: 400;
-    --z-toast: 500;
 }

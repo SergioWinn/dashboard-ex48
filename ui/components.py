@@ -4,9 +4,11 @@ import streamlit as st
 import hashlib
 import re
 from html import escape
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 import streamlit.components.v1 as components
+
+from core.refresh import get_sales_window
 
 
 def install_motion_observer():
@@ -97,26 +99,8 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
         st.info("Sessions are not available for this event yet.")
         return
 
-    now_wib = datetime.utcnow() + timedelta(hours=7)
-    general_end_wib = None
-    
-    # --- PERBAIKAN LOGIKA WAKTU TUTUP ---
-    for period in event_data.get('sales_period', []):
-        if not period.get('is_ofc_only', False) or period.get('label') == 'General':
-            ed = period.get('end_date')
-            if ed:
-                try:
-                    clean_ed = ed.split('.')[0]
-                    if 'Z' in ed:
-                        # Kalau ada Z berarti beneran UTC, baru ditambah 7 jam
-                        general_end_wib = datetime.strptime(clean_ed.replace('Z', ''), "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
-                    else:
-                        # Data dari API JKT48 untuk sales_period sudah WIB (tanpa 'Z')
-                        # Jadi TIDAK PERLU ditambah 7 jam lagi
-                        general_end_wib = datetime.strptime(clean_ed, "%Y-%m-%dT%H:%M:%S")
-                except:
-                    pass
-    # ------------------------------------
+    now_wib = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=7)
+    _, general_end_wib = get_sales_window(event_data)
 
     matched_full_names = set()
     if search_query:
@@ -125,6 +109,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 matched_full_names.add(full_name)
 
     sessions_by_date = {}
+    matched_member_found = False
     for sesi in sessions:
         is_before_deadline = True
         raw_date = str(sesi.get('date') or '')
@@ -139,7 +124,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                         session_date_wib += timedelta(hours=7)
                 else:
                     session_date_wib = datetime.strptime(clean_date, "%Y-%m-%d")
-            except:
+            except (TypeError, ValueError):
                 pass
 
         if general_end_wib:
@@ -158,7 +143,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                         session_end_datetime = datetime.combine(session_date_wib.date(), t_end)
                         if now_wib > session_end_datetime:
                             is_before_deadline = False
-                    except:
+                    except (TypeError, ValueError):
                         pass
 
         members = sesi.get('session_detail', [])
@@ -169,6 +154,8 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 if str(m.get('jkt48_member_name') or '').lower() in matched_full_names
                 or search_query in str(m.get('jkt48_member_name') or '').lower()
             ]
+            if members:
+                matched_member_found = True
             
         if available_only:
             # Jika mode available dihidupkan, dan event tutup, langsung sembunyikan semua
@@ -199,7 +186,16 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
         sesi_clean['session_date_wib'] = session_date_wib
         sessions_by_date[date_str].append(sesi_clean)
 
-    unique_dates = list(sessions_by_date.keys())
+    for date_sessions in sessions_by_date.values():
+        date_sessions.sort(key=lambda session: str(session.get('start_time') or ''))
+
+    def date_sort_key(date_label):
+        try:
+            return datetime.strptime(date_label[:10], '%d/%m/%Y')
+        except ValueError:
+            return datetime.max
+
+    unique_dates = sorted(sessions_by_date, key=date_sort_key)
 
     if search_query:
         active_sessions = []
@@ -220,13 +216,16 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
 
     if not active_sessions:
         if search_query:
-            st.warning(f"Member '{search_query.title()}' not found in this event.")
+            if matched_member_found:
+                st.warning(f"Member '{search_query.title()}' has no matching available tickets.")
+            else:
+                st.warning(f"Member '{search_query.title()}' not found in this event.")
         else:
             st.warning("No active tickets or available sessions right now.")
         return
 
     is_search_mode = bool(search_query)
-    now_dt = datetime.utcnow() + timedelta(hours=7)
+    now_dt = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=7)
     waktu_sekarang = now_dt.strftime('%d/%m/%Y %H:%M WIB')
     judul_event = escape(str(event_data.get('title', 'JKT48 Exclusive Event')).upper())
     
@@ -248,7 +247,8 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
     </div>
     """
     
-    master_html_buffer = f'<div id="laporan-container">{banner_html}'
+    search_class = ' class="is-search-mode"' if is_search_mode else ''
+    master_html_buffer = f'<div id="laporan-container"{search_class}>{banner_html}'
     
     if is_search_mode:
         master_html_buffer += '<div class="cards-grid">'
@@ -271,7 +271,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
         display_time_info = escape(time_info)
         
         if not is_search_mode:
-            master_html_buffer += f'<h4 class="session-heading" data-share-session-heading="{session_share_key}">{display_session_label} <span class="session-time">{display_time_info}</span></h4>'
+            master_html_buffer += f'<h3 class="session-heading" data-share-session-heading="{session_share_key}">{display_session_label} <span class="session-time">{display_time_info}</span></h3>'
             master_html_buffer += f'<div class="cards-grid" data-share-session-grid="{session_share_key}">'
             
         for m in members:
@@ -309,24 +309,15 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             
            # --- LOGIKA TEMA CARD TERPADU (CLOSED / SOLD OUT / LOW / AVAILABLE) ---
             if is_event_closed or not is_before_deadline:
-                # Event closed tetap pakai komposisi sold/remaining asli supaya tidak terlihat sold out.
                 cls = "closed"
                 btn_text = "CLOSED"
-                badge_html = ""
             elif current_quota <= 0:
-                # TEMA SOLD OUT (Merah murni)
                 cls, btn_text = "sold", "SOLD&nbsp;OUT"
                 sold_percentage = 100
-                badge_html = ""
             elif current_quota < warn_limit:
-                # TEMA LOW QUOTA (Kuning hati-hati)
-                cls, btn_text = "warn", f"{current_quota}&nbsp;LEFT"
-                badge_html = '<div class="c-badge">LOW</div>'
+                cls, btn_text = "warn", f"LOW&nbsp;·&nbsp;{current_quota}&nbsp;LEFT"
             else:
-                # TEMA AVAILABLE (Hijau normal)
                 cls, btn_text = "avail", f"{current_quota}&nbsp;LEFT"
-                badge_html = '<div class="c-badge">AVAILABLE</div>'
-            # ----------------------------------------------------------------------
 
             safe_name_img = member_name.strip().lower()
             raw_photo_value = photo_map.get(safe_name_img)
@@ -334,17 +325,16 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             
             if raw_photo_url:
                 proxy_url = f"https://wsrv.nl/?url={quote(raw_photo_url, safe='')}&w=180&h=180&fit=cover&a=top&output=webp"
+                safe_proxy_url = escape(proxy_url, quote=True)
+                img_html = (
+                    f'<div class="c-photo">'
+                    f'<img class="c-photo-image" src="{safe_proxy_url}" alt="" aria-hidden="true" '
+                    f'width="180" height="180" loading="lazy" crossorigin="anonymous">'
+                    f'</div>'
+                )
             else:
-                proxy_url = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-
-            safe_proxy_url = escape(proxy_url, quote=True)
-            safe_photo_alt = escape(f"{member_name} JKT48 photo", quote=True)
-            img_html = (
-                f'<div class="c-photo">'
-                f'<img class="c-photo-image" src="{safe_proxy_url}" alt="{safe_photo_alt}" '
-                f'width="180" height="180" loading="lazy" crossorigin="anonymous">'
-                f'</div>'
-            )
+                initials = ''.join(part[0] for part in member_name.split()[:2]).upper() or '?'
+                img_html = f'<div class="c-photo c-photo-placeholder" aria-hidden="true">{escape(initials)}</div>'
                                         
             combined_ui = f"""
             <div class="c-stats">
@@ -365,7 +355,6 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
             if current_quota <= 0 or not is_before_deadline or is_event_closed: 
                 card_html += (
                     f'<div class="ldp-card {cls}" {share_attributes}>'
-                     f'{badge_html}'
                      f'<div class="c-jalur" title="{escape(jalur_title, quote=True)}">{display_jalur}</div>'
                      f'{identity_ui}'
                     f'<div class="c-card-foot">'
@@ -375,12 +364,11 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 )
             else: 
                 purchase_aria = escape(
-                    f"Purchase ticket for {member_name}, {sesi_label}, {current_quota} remaining",
+                    f"Purchase ticket for {member_name}, {sesi_label}, {current_quota} remaining; opens in a new tab",
                     quote=True,
                 )
                 card_html += (
                     f'<a href="{escape(purchase_link, quote=True)}" target="_blank" rel="noopener noreferrer" class="ldp-card purchase-card {cls}" aria-label="{purchase_aria}" {share_attributes}>'
-                     f'{badge_html}'
                      f'<div class="c-jalur" title="{escape(jalur_title, quote=True)}">{display_jalur}</div>'
                      f'{identity_ui}'
                     f'<div class="c-card-foot">'
@@ -483,6 +471,8 @@ def render_share_controls(storage_key):
         if (oldDialog) oldDialog.remove();
         const dialog = window.parent.document.createElement("dialog");
         dialog.id = "share-selection-dialog";
+        dialog.setAttribute("aria-labelledby", "share-picker-title");
+        dialog.setAttribute("aria-describedby", "share-picker-description");
         dialog.innerHTML = `
             <style>
                 #share-selection-dialog { --dialog-bg: var(--color-graphite); --dialog-surface: var(--color-graphite-2); --dialog-rule: var(--color-graphite-2); --dialog-ink: var(--color-graphite-ink); --dialog-ink-muted: var(--color-graphite-muted); --dialog-accent: var(--color-accent); --dialog-accent-fill: var(--color-accent); --dialog-accent-strong: var(--color-accent-strong); --dialog-accent-ink: var(--color-accent-ink); --dialog-focus: var(--color-graphite-ink); --dialog-warning: var(--color-warning); --dialog-error: var(--color-danger); --dialog-backdrop: var(--color-overlay); --dialog-shadow: var(--color-shadow); --dialog-font: var(--font-body); position: fixed; inset: 0; width: min(680px, calc(100% - 24px)); height: fit-content; max-height: min(720px, calc(100dvh - 24px)); margin: auto; padding: 0; border: 0; border-radius: var(--radius-card); background: var(--dialog-bg); color: var(--dialog-ink); font-family: var(--dialog-font); box-shadow: 0 1px 2px var(--dialog-shadow); }
@@ -499,7 +489,7 @@ def render_share_controls(storage_key):
                 .share-picker-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm); }
                 .share-picker-section h3 { margin: 0; font-size: 14px; }
                 .share-picker-actions { display: flex; gap: var(--space-xs); }
-                .share-picker-actions button { min-height: 44px; border: 0; background: transparent; color: var(--dialog-accent); font: inherit; font-size: 12px; cursor: pointer; padding: var(--space-xs); }
+                .share-picker-actions button { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--dialog-accent); font: inherit; font-size: 12px; cursor: pointer; padding: var(--space-xs); }
                 .share-picker-list { display: flex; flex-direction: column; gap: var(--space-2xs); }
                 .share-picker-item { min-height: 44px; display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs); border-radius: var(--radius-input); cursor: pointer; color: var(--dialog-ink); font-size: 13px; line-height: 1.35; }
                 .share-picker-item:hover { background: var(--dialog-surface); }
@@ -508,13 +498,12 @@ def render_share_controls(storage_key):
                 #share-picker-count { color: var(--dialog-ink-muted); font-size: 12px; }
                 .share-picker-status { min-width: 0; }
                 #share-picker-feedback { display: block; min-height: 1lh; margin-top: var(--space-2xs); color: var(--dialog-ink-muted); font-size: 12px; }
-                #share-picker-feedback[data-tone="success"] { color: var(--dialog-accent); }
-                #share-picker-feedback[data-tone="error"] { color: var(--dialog-error); }
+                #share-picker-feedback[data-tone="success"], #share-picker-feedback[data-tone="error"] { color: var(--dialog-ink); }
                 #share-picker-copy { min-width: 128px; min-height: 44px; border: 0; border-radius: var(--radius-input); background: var(--dialog-accent-fill); color: var(--dialog-accent-ink); padding: var(--space-xs) var(--space-md); font-weight: 800; cursor: pointer; white-space: nowrap; }
-                #share-picker-copy[data-state="loading"] { background: var(--dialog-warning); color: var(--dialog-ink); cursor: wait; }
-                #share-picker-copy[data-state="success"] { background: var(--dialog-accent-strong); color: var(--dialog-ink); }
+                #share-picker-copy[data-state="loading"] { background: var(--dialog-warning); color: var(--color-status-warning-ink); cursor: wait; }
+                #share-picker-copy[data-state="success"] { background: var(--dialog-accent-strong); color: var(--dialog-accent-ink); }
                 #share-picker-copy[data-state="blocked"] { background: var(--dialog-warning); color: var(--color-status-warning-ink); }
-                #share-picker-copy[data-state="error"] { background: var(--dialog-error); color: var(--dialog-ink); }
+                #share-picker-copy[data-state="error"] { background: var(--dialog-error); color: var(--color-danger-ink); }
                 #share-picker-copy:disabled { cursor: not-allowed; opacity: .55; }
                 #share-selection-dialog button:active { transform: translateY(1px); }
                 #share-selection-dialog button:focus-visible, #share-selection-dialog input:focus-visible { outline: 3px solid var(--dialog-focus); outline-offset: 2px; }
@@ -533,16 +522,16 @@ def render_share_controls(storage_key):
                 }
             </style>
             <div class="share-picker-head">
-                <div><h2>Select content to copy</h2><p>Choose sessions and members for the clipboard image.</p></div>
+                <div><h2 id="share-picker-title">Select content to copy</h2><p id="share-picker-description">Choose sessions and members for the clipboard image.</p></div>
                 <button class="share-picker-close" aria-label="Close">×</button>
             </div>
             <div class="share-picker-body">
                 <section class="share-picker-section">
-                    <div class="share-picker-section-head"><h3>Sessions</h3><div class="share-picker-actions"><button data-group="sessions" data-action="all">All</button><button data-group="sessions" data-action="none">None</button></div></div>
+                    <div class="share-picker-section-head"><h3>Sessions</h3><div class="share-picker-actions"><button aria-label="Select all sessions" data-group="sessions" data-action="all">All</button><button aria-label="Clear all sessions" data-group="sessions" data-action="none">None</button></div></div>
                     <div class="share-picker-list" id="share-session-list"></div>
                 </section>
                 <section class="share-picker-section">
-                    <div class="share-picker-section-head"><h3>Members</h3><div class="share-picker-actions"><button data-group="members" data-action="all">All</button><button data-group="members" data-action="none">None</button></div></div>
+                    <div class="share-picker-section-head"><h3>Members</h3><div class="share-picker-actions"><button aria-label="Select all members" data-group="members" data-action="all">All</button><button aria-label="Clear all members" data-group="members" data-action="none">None</button></div></div>
                     <div class="share-picker-list" id="share-member-list"></div>
                 </section>
             </div>
@@ -554,7 +543,8 @@ def render_share_controls(storage_key):
         }, { once: true });
 
         function updateCount() {
-            dialog.querySelector("#share-picker-count").textContent = `${selectedSessions.size} session(s) · ${selectedMembers.size} member(s)`;
+            const cardCount = selectedCardCount();
+            dialog.querySelector("#share-picker-count").textContent = `${cardCount} card(s) · ${selectedSessions.size} session(s) · ${selectedMembers.size} member(s)`;
             const copyAction = dialog.querySelector("#share-picker-copy");
             if (copyAction.dataset.state === "idle") {
                 const canCopy = hasSelectedCards();
@@ -570,9 +560,13 @@ def render_share_controls(storage_key):
         }
 
         function hasSelectedCards() {
-            return [...window.parent.document.querySelectorAll("#laporan-container .ldp-card[data-share-session]")].some(card => (
+            return selectedCardCount() > 0;
+        }
+
+        function selectedCardCount() {
+            return [...window.parent.document.querySelectorAll("#laporan-container .ldp-card[data-share-session]")].filter(card => (
                 selectedSessions.has(card.dataset.shareSession) && selectedMembers.has(card.dataset.shareMember)
-            ));
+            )).length;
         }
 
         function renderList(containerId, items, selection) {
@@ -681,16 +675,15 @@ def render_share_controls(storage_key):
             const colorTokens = [
                 "--color-paper", "--color-paper-2", "--color-paper-3", "--color-ink",
                 "--color-ink-2", "--color-muted", "--color-rule", "--color-rule-strong",
-                "--color-accent", "--color-accent-strong", "--color-accent-soft",
+                "--color-accent", "--color-accent-strong",
                 "--color-accent-ink", "--color-focus", "--color-success",
-                "--color-success-soft", "--color-success-ink", "--color-status-success-ink",
+                "--color-success-soft", "--color-success-ink",
                 "--color-warning", "--color-warning-soft", "--color-warning-ink",
                 "--color-status-warning-ink", "--color-danger", "--color-danger-soft",
                 "--color-danger-ink", "--color-closed", "--color-graphite",
                 "--color-graphite-2", "--color-graphite-ink", "--color-graphite-muted",
                 "--color-overlay", "--color-shadow", "--color-surface",
-                "--color-surface-raised", "--color-on-status", "--color-photo",
-                "--color-text-shadow",
+                "--color-surface-raised", "--color-photo",
             ];
             const probe = window.parent.document.createElement("span");
             const legacyTokens = {};
@@ -740,28 +733,26 @@ def render_share_controls(storage_key):
             const target = source.cloneNode(true);
             target.id = "share-capture-target";
             target.classList.add("capture-mode");
-            target.querySelectorAll("img").forEach(image => {
-                image.loading = "eager";
-                image.decoding = "async";
-                image.crossOrigin = "anonymous";
-            });
             target.querySelectorAll(".ldp-card[data-share-session]").forEach(card => {
-                if (!selectedSessions.has(card.dataset.shareSession) || !selectedMembers.has(card.dataset.shareMember)) card.style.display = "none";
+                if (!selectedSessions.has(card.dataset.shareSession) || !selectedMembers.has(card.dataset.shareMember)) card.remove();
             });
-            const hasSelectedCard = [...target.querySelectorAll(".ldp-card[data-share-session]")].some(card => card.style.display !== "none");
-            if (!hasSelectedCard) {
+            if (!target.querySelector(".ldp-card[data-share-session]")) {
                 renderPicker();
                 if (!dialog.open) dialog.showModal();
                 requestAnimationFrame(() => dialog.querySelector("input")?.focus());
                 return null;
             }
             target.querySelectorAll("[data-share-session-grid]").forEach(grid => {
-                const hasVisibleCard = [...grid.querySelectorAll(".ldp-card")].some(card => card.style.display !== "none");
-                if (!hasVisibleCard) {
-                    grid.style.display = "none";
+                if (!grid.querySelector(".ldp-card")) {
                     const heading = target.querySelector(`[data-share-session-heading="${grid.dataset.shareSessionGrid}"]`);
-                    if (heading) heading.style.display = "none";
+                    heading?.remove();
+                    grid.remove();
                 }
+            });
+            target.querySelectorAll("img").forEach(image => {
+                image.loading = "eager";
+                image.decoding = "async";
+                image.crossOrigin = "anonymous";
             });
             const banner = target.querySelector("#share-banner");
             if (banner) banner.style.display = "flex";
