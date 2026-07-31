@@ -49,18 +49,11 @@ body,
     min-width: 0;
 }
 
-.ldp-system-label,
 .source-readout {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     letter-spacing: 0.06em;
     text-transform: uppercase;
-}
-
-.ldp-system-label {
-    display: block;
-    margin-bottom: var(--space-xs);
-    color: var(--color-accent);
 }
 
 .ldp-title {
@@ -75,7 +68,7 @@ body,
 }
 
 .ldp-subtitle {
-    margin: var(--space-md) 0 var(--space-xl);
+    margin: var(--space-md) 0 var(--space-lg);
     max-width: 65ch;
     color: var(--color-ink-2);
     font-size: var(--text-base);
@@ -94,7 +87,7 @@ body,
     color: var(--color-ink) !important;
     font-size: var(--text-sm);
     font-weight: 600;
-    text-decoration: none;
+    text-decoration: none !important;
     white-space: nowrap;
     transition: transform var(--dur-micro) var(--ease-out);
 }
@@ -223,7 +216,8 @@ body,
     text-transform: uppercase;
 }
 
-div[data-baseweb="select"] > div,
+.stApp div[data-baseweb="select"],
+.stApp div[data-baseweb="select"] > div,
 [data-testid="stTextInput"] input {
     min-height: 44px;
     border-color: var(--color-rule-strong) !important;
@@ -232,6 +226,20 @@ div[data-baseweb="select"] > div,
     color: var(--color-ink) !important;
     outline: 2px solid transparent;
     outline-offset: 1px;
+}
+
+.stApp div[data-baseweb="select"] > div > div {
+    background: transparent !important;
+}
+
+.stApp div[data-baseweb="select"] *,
+[data-baseweb="popover"] *,
+[role="listbox"] * {
+    color: var(--color-ink) !important;
+}
+
+.stApp div[data-baseweb="select"] svg {
+    fill: var(--color-ink) !important;
 }
 
 [data-testid="stTextInput"] input::placeholder {
@@ -249,6 +257,27 @@ div[data-baseweb="select"]:focus-within > div {
 div[data-baseweb="select"][aria-disabled="true"] > div {
     cursor: not-allowed;
     opacity: 0.55;
+}
+
+[data-baseweb="checkbox"] label {
+    min-height: 44px;
+    align-items: center;
+    color: var(--color-ink) !important;
+}
+
+[data-baseweb="checkbox"] input + div {
+    background: var(--color-paper-3) !important;
+    border-color: var(--color-rule-strong) !important;
+}
+
+[data-baseweb="checkbox"] input:checked + div {
+    background: var(--color-accent) !important;
+    border-color: var(--color-accent-strong) !important;
+}
+
+[data-baseweb="checkbox"] input:focus-visible + div {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
 }
 
 [data-testid="stWidgetLabel"] p {

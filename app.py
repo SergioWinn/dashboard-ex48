@@ -21,7 +21,6 @@ st.markdown(
     """
     <div class="ldp-header">
         <div class="ldp-wordmark">
-            <span class="ldp-system-label">JKT48 / EXCLUSIVE DATA INDEX</span>
             <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
         </div>
         <a href="https://tako.id/Sportagame19Win" target="_blank" rel="noopener noreferrer" class="tako-btn">Support project ↗</a>
