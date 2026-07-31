@@ -335,7 +335,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 .cards-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-sm);
     margin-bottom: var(--space-lg);
 }
@@ -343,8 +343,8 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 .ldp-card {
     position: relative;
     min-width: 0;
-    min-height: 190px;
-    padding: var(--space-xs);
+    min-height: 0;
+    padding: var(--space-sm);
     border: 1px solid var(--color-rule);
     border-radius: var(--radius-card);
     background: var(--color-surface);
@@ -352,7 +352,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    text-align: center;
+    text-align: left;
     text-decoration: none !important;
 }
 
@@ -374,16 +374,15 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 .c-identity {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    justify-items: center;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    align-items: center;
     gap: var(--space-sm);
     margin-block: var(--space-xs);
 }
 
 .c-photo {
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
     aspect-ratio: 1 / 1;
     margin: 0;
     border: 1px solid var(--color-rule-strong);
@@ -430,7 +429,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     letter-spacing: 0.05em;
     line-height: 1.25;
     text-overflow: ellipsis;
-    text-align: center;
+    text-align: left;
     text-transform: uppercase;
     white-space: nowrap;
 }
@@ -438,16 +437,16 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 .c-member {
     width: 100%;
     min-width: 0;
-    min-height: 2.4em;
+    min-height: 0;
     margin: 0;
     display: -webkit-box;
     overflow: hidden;
     font-family: var(--font-display);
-    font-size: var(--text-sm);
+    font-size: var(--text-base);
     font-weight: 600;
     line-height: 1.2;
-    overflow-wrap: normal;
-    text-align: center;
+    overflow-wrap: anywhere;
+    text-align: left;
     text-overflow: ellipsis;
     word-break: normal;
     -webkit-box-orient: vertical;
@@ -456,15 +455,18 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 .c-card-foot {
     width: 100%;
-    margin-top: auto;
-    display: block;
+    margin-top: var(--space-xs);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-sm);
 }
 
 .c-stats {
     width: 100%;
-    margin-bottom: var(--space-xs);
+    margin-bottom: 0;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     color: var(--color-muted);
     font-family: var(--font-body);
     font-size: var(--text-xs);
@@ -638,7 +640,12 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     .st-key-summary_metrics [data-testid="stHorizontalBlock"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .st-key-summary_metrics [data-testid="stMetric"] { min-height: 7rem; border-top: 0; border-inline-start: 1px solid var(--color-rule); }
     .st-key-summary_metrics [data-testid="stColumn"]:first-child [data-testid="stMetric"] { border-inline-start: 0; }
-    .cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: var(--space-xl); }
+    .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: var(--space-xl); }
+    .ldp-card { min-height: 196px; padding: var(--space-md); }
+    .c-identity { grid-template-columns: 3.5rem minmax(0, 1fr); margin-block: var(--space-sm); }
+    .c-photo { width: 56px; height: 56px; }
+    .c-card-foot { display: block; margin-top: auto; }
+    .c-stats { margin-bottom: var(--space-xs); }
 }
 
 @media (min-width: 48rem) {
@@ -650,7 +657,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 @media (min-width: 64rem) {
     .st-key-event_filters [data-testid="stHorizontalBlock"] { grid-template-columns: minmax(0, 1.3fr) minmax(0, 2.5fr) minmax(0, 1.2fr) minmax(0, 1.2fr); }
-    .cards-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: var(--space-md); }
+    .cards-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-md); }
 }
 
 @media (hover: hover) and (pointer: fine) {
