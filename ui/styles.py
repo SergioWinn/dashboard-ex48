@@ -12,10 +12,6 @@ html, body, .stApp {
     overflow-x: clip;
 }
 
-html {
-    color-scheme: light;
-}
-
 body,
 .stApp {
     background: var(--color-paper);
@@ -232,9 +228,7 @@ body,
     background: transparent !important;
 }
 
-.stApp div[data-baseweb="select"] *,
-[data-baseweb="popover"] *,
-[role="listbox"] * {
+.stApp div[data-baseweb="select"] * {
     color: var(--color-ink) !important;
 }
 
@@ -286,12 +280,6 @@ div[data-baseweb="select"][aria-disabled="true"] > div {
     font-size: var(--text-xs);
     letter-spacing: 0.04em;
     text-transform: uppercase;
-}
-
-[data-baseweb="popover"],
-[role="listbox"] {
-    background: var(--color-paper) !important;
-    color: var(--color-ink) !important;
 }
 
 div[class*="st-key-filter_date_"] [role="radiogroup"] {
@@ -517,11 +505,11 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 }
 
 .ldp-card.avail .c-prog-text {
-    color: var(--color-success-ink);
+    color: var(--color-status-success-ink);
 }
 
 .ldp-card.warn .c-prog-text {
-    color: var(--color-warning-ink);
+    color: var(--color-status-warning-ink);
     text-shadow: none;
 }
 
