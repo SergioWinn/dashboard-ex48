@@ -48,9 +48,11 @@ def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_ma
 
     wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
 
-    if fresh_event_data:
+    if fresh_event_data and wr_info.get("is_live"):
         current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S")
         st.caption(f"Live data · Updated {current_time_wib} WIB")
+    elif fresh_event_data:
+        st.warning(f"Live API unavailable. Showing bundled/cache fallback ({wr_info.get('time')}).")
     elif not wr_info.get("is_live"):
         st.warning(
             f"**JKT48 Server is currently in Cloudflare Waiting Room / Down.** "
