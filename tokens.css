@@ -1,0 +1,86 @@
+/* Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V5
+ * genre: modern-minimal · macrostructure: Ecosystem Index · theme: Cobalt
+ * nav: N9 · footer: Ft2 · tone: technical · anchor hue: 256
+ */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&family=Space+Grotesk:wght@500;600;700&display=swap");
+
+:root {
+    --color-paper: oklch(98.5% 0.004 250);
+    --color-paper-2: oklch(96% 0.008 252);
+    --color-paper-3: oklch(92.5% 0.012 254);
+    --color-ink: oklch(24% 0.02 258);
+    --color-ink-2: oklch(34% 0.018 257);
+    --color-muted: oklch(46% 0.018 256);
+    --color-rule: oklch(86% 0.014 254);
+    --color-rule-strong: oklch(72% 0.022 255);
+    --color-accent: oklch(56% 0.2 256);
+    --color-accent-strong: oklch(48% 0.2 256);
+    --color-accent-soft: oklch(94% 0.035 256);
+    --color-accent-ink: oklch(98.5% 0.004 250);
+    --color-focus: oklch(48% 0.2 256);
+    --color-success: oklch(56% 0.15 155);
+    --color-success-soft: oklch(94% 0.035 155);
+    --color-success-ink: oklch(14% 0.045 155);
+    --color-warning: oklch(78% 0.15 82);
+    --color-warning-soft: oklch(95% 0.035 82);
+    --color-warning-ink: oklch(25% 0.045 82);
+    --color-danger: oklch(52% 0.19 25);
+    --color-danger-soft: oklch(94% 0.035 25);
+    --color-danger-ink: oklch(98% 0.006 25);
+    --color-closed: oklch(42% 0.018 256);
+    --color-graphite: oklch(22% 0.016 260);
+    --color-graphite-2: oklch(28% 0.018 260);
+    --color-graphite-ink: oklch(94% 0.008 252);
+    --color-graphite-muted: oklch(76% 0.012 254);
+    --color-overlay: oklch(16% 0.016 260 / 0.64);
+    --color-shadow: oklch(24% 0.02 258 / 0.1);
+    --color-surface: var(--color-paper-2);
+    --color-surface-raised: var(--color-paper-3);
+    --color-on-status: var(--color-graphite-ink);
+    --color-photo: var(--color-paper);
+    --color-text-shadow: var(--color-overlay);
+
+    --font-display: "Space Grotesk", sans-serif;
+    --font-body: "Inter", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
+
+    --space-3xs: 0.125rem;
+    --space-2xs: 0.25rem;
+    --space-xs: 0.5rem;
+    --space-sm: 0.75rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2.5rem;
+    --space-2xl: 4rem;
+    --space-3xl: 6rem;
+
+    --text-xs: 0.75rem;
+    --text-sm: 0.875rem;
+    --text-base: 1rem;
+    --text-md: 1.25rem;
+    --text-lg: 1.5625rem;
+    --text-xl: 1.953rem;
+    --text-2xl: 2.441rem;
+    --text-display: clamp(2rem, 6vw, 3.25rem);
+
+    --radius-input: 6px;
+    --radius-card: 10px;
+    --radius-pill: 999px;
+    --radius-sm: var(--radius-input);
+    --radius-md: var(--radius-card);
+    --rule-thin: 1px;
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --dur-micro: 100ms;
+    --dur-short: 180ms;
+    --dur-long: 300ms;
+
+    --z-base: 1;
+    --z-raised: 10;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-modal: 400;
+    --z-toast: 500;
+}

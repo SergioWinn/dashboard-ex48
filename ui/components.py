@@ -289,16 +289,19 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 <div class="c-prog-text">{btn_text}</div>
             </div>
             """
+            identity_ui = (
+                f'<div class="c-identity">{img_html}'
+                f'<div class="c-member">{display_member}</div></div>'
+            )
             
             card_html = ""
             # Jika sudah habis ATAU lewat deadline sesi ATAU event tutup total, matikan link <a>
             if current_quota <= 0 or not is_before_deadline or is_event_closed: 
                 card_html += (
                     f'<div class="ldp-card {cls}" {share_attributes}>'
-                    f'{badge_html}'
-                    f'<div class="c-jalur" title="{escape(jalur_title, quote=True)}">{display_jalur}</div>'
-                    f'{img_html}'
-                    f'<div class="c-member">{display_member}</div>'
+                     f'{badge_html}'
+                     f'<div class="c-jalur" title="{escape(jalur_title, quote=True)}">{display_jalur}</div>'
+                     f'{identity_ui}'
                     f'<div class="c-card-foot">'
                     f'{combined_ui}'
                     f'</div>'
@@ -311,10 +314,9 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 )
                 card_html += (
                     f'<a href="{escape(purchase_link, quote=True)}" target="_blank" rel="noopener noreferrer" class="ldp-card purchase-card {cls}" aria-label="{purchase_aria}" {share_attributes}>'
-                    f'{badge_html}'
-                    f'<div class="c-jalur" title="{escape(jalur_title, quote=True)}">{display_jalur}</div>'
-                    f'{img_html}'
-                    f'<div class="c-member">{display_member}</div>'
+                     f'{badge_html}'
+                     f'<div class="c-jalur" title="{escape(jalur_title, quote=True)}">{display_jalur}</div>'
+                     f'{identity_ui}'
                     f'<div class="c-card-foot">'
                     f'{combined_ui}'
                     f'</div></a>'
@@ -336,16 +338,16 @@ def render_share_controls(storage_key):
     controls_html = """
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        :root { --green: #047857; --green-dark: #065F46; --blue: #2563EB; --blue-dark: #1D4ED8; --error: #B91C1C; --warning: #A16207; --button-ink: #FFFFFF; --button-shadow: rgba(0,0,0,.4); --ease-out: cubic-bezier(.16,1,.3,1); }
-        body { margin: 0; background: transparent; display: flex; gap: 8px; justify-content: center; align-items: center; overflow: hidden; }
-        .btn-action { color: var(--button-ink); border: 0; width: 48px; height: 48px; border-radius: 50%; font-size: 19px; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 3px 8px var(--button-shadow); transition: transform 180ms var(--ease-out), background-color 180ms var(--ease-out); }
+        :root { --share-accent: oklch(56% 0.2 256); --share-accent-strong: oklch(48% 0.2 256); --share-ink: oklch(98.5% 0.004 250); --share-focus: oklch(18% 0.02 258); --share-shadow: oklch(24% 0.02 258 / 0.18); --share-space-xs: 8px; --ease-out: cubic-bezier(.16,1,.3,1); }
+        body { margin: 0; background: transparent; display: flex; gap: var(--share-space-xs); justify-content: center; align-items: center; overflow: hidden; }
+        .btn-action { color: var(--share-ink); border: 0; width: 48px; height: 48px; border-radius: 50%; font-size: 19px; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 1px 2px var(--share-shadow); transition: transform 100ms var(--ease-out); }
         .btn-action svg { width: 20px; height: 20px; stroke: currentColor; }
         .btn-action:active { transform: translateY(1px); }
-        .btn-action:focus-visible { outline: 3px solid white; outline-offset: 2px; }
+        .btn-action:focus-visible { outline: 3px solid var(--share-focus); outline-offset: 2px; }
         .btn-action:disabled { cursor: wait; opacity: .75; }
-        #share-btn { background: var(--green); }
+        #share-btn { background: var(--share-accent); }
         @media (hover: hover) and (pointer: fine) {
-            #share-btn:hover { background: var(--green-dark); transform: translateY(-2px); }
+            #share-btn:hover { background: var(--share-accent-strong); }
         }
         @media (prefers-reduced-motion: reduce) { .btn-action { transition: none; } }
     </style>
@@ -417,38 +419,44 @@ def render_share_controls(storage_key):
         dialog.id = "share-selection-dialog";
         dialog.innerHTML = `
             <style>
-                #share-selection-dialog { --dialog-bg: #111827; --dialog-surface: #1F2937; --dialog-rule: #374151; --dialog-ink: #F9FAFB; --dialog-ink-muted: #D1D5DB; --dialog-accent: #6EE7B7; --dialog-accent-fill: #10B981; --dialog-accent-strong: #047857; --dialog-accent-ink: #052E25; --dialog-warning: #A16207; --dialog-error: #B91C1C; --dialog-backdrop: rgba(0,0,0,.62); --dialog-shadow: rgba(0,0,0,.45); --dialog-font: Inter, system-ui, sans-serif; position: fixed; inset: 0; width: min(680px, calc(100% - 24px)); height: fit-content; max-height: min(720px, calc(100dvh - 24px)); margin: auto; padding: 0; border: 0; border-radius: 12px; background: var(--dialog-bg); color: var(--dialog-ink); font-family: var(--dialog-font); box-shadow: 0 12px 32px var(--dialog-shadow); }
+                #share-selection-dialog { --dialog-bg: var(--color-graphite); --dialog-surface: var(--color-graphite-2); --dialog-rule: var(--color-graphite-2); --dialog-ink: var(--color-graphite-ink); --dialog-ink-muted: var(--color-graphite-muted); --dialog-accent: var(--color-accent); --dialog-accent-fill: var(--color-accent); --dialog-accent-strong: var(--color-accent-strong); --dialog-accent-ink: var(--color-accent-ink); --dialog-focus: var(--color-graphite-ink); --dialog-warning: var(--color-warning); --dialog-error: var(--color-danger); --dialog-backdrop: var(--color-overlay); --dialog-shadow: var(--color-shadow); --dialog-font: var(--font-body); position: fixed; inset: 0; width: min(680px, calc(100% - 24px)); height: fit-content; max-height: min(720px, calc(100dvh - 24px)); margin: auto; padding: 0; border: 0; border-radius: var(--radius-card); background: var(--dialog-bg); color: var(--dialog-ink); font-family: var(--dialog-font); box-shadow: 0 1px 2px var(--dialog-shadow); }
                 #share-selection-dialog::backdrop { background: var(--dialog-backdrop); }
-                .share-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--dialog-rule); }
+                .share-picker-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm); border-bottom: 1px solid var(--dialog-rule); }
                 .share-picker-head h2 { margin: 0; font-size: 18px; }
-                .share-picker-head p { margin: 4px 0 0; color: var(--dialog-ink-muted); font-size: 12px; }
+                .share-picker-head p { display: none; margin: var(--space-2xs) 0 0; color: var(--dialog-ink-muted); font-size: 12px; }
                 .share-picker-close { width: 44px; height: 44px; flex: 0 0 44px; border: 0; border-radius: 50%; background: var(--dialog-rule); color: var(--dialog-ink); cursor: pointer; font-size: 20px; }
-                .share-picker-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; padding: 18px 20px; overflow: auto; max-height: calc(100dvh - 210px); }
-                .share-picker-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+                .share-picker-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-lg); padding: var(--space-sm); overflow: auto; max-height: calc(100dvh - 170px); }
+                .share-picker-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm); }
                 .share-picker-section h3 { margin: 0; font-size: 14px; }
-                .share-picker-actions { display: flex; gap: 6px; }
-                .share-picker-actions button { min-height: 44px; border: 0; background: transparent; color: var(--dialog-accent); font: inherit; font-size: 12px; cursor: pointer; padding: 8px; }
-                .share-picker-list { display: flex; flex-direction: column; gap: 4px; }
-                .share-picker-item { min-height: 44px; display: flex; align-items: center; gap: 9px; padding: 8px; border-radius: 8px; cursor: pointer; color: var(--dialog-ink); font-size: 13px; line-height: 1.35; }
+                .share-picker-actions { display: flex; gap: var(--space-xs); }
+                .share-picker-actions button { min-height: 44px; border: 0; background: transparent; color: var(--dialog-accent); font: inherit; font-size: 12px; cursor: pointer; padding: var(--space-xs); }
+                .share-picker-list { display: flex; flex-direction: column; gap: var(--space-2xs); }
+                .share-picker-item { min-height: 44px; display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs); border-radius: var(--radius-input); cursor: pointer; color: var(--dialog-ink); font-size: 13px; line-height: 1.35; }
                 .share-picker-item:hover { background: var(--dialog-surface); }
-                .share-picker-item input { margin-top: 2px; accent-color: var(--dialog-accent-fill); }
-                .share-picker-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 22px 18px; border-top: 1px solid var(--dialog-rule); }
+                .share-picker-item input { margin-top: var(--space-3xs); accent-color: var(--dialog-accent-fill); }
+                .share-picker-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm); border-top: 1px solid var(--dialog-rule); }
                 #share-picker-count { color: var(--dialog-ink-muted); font-size: 12px; }
-                #share-picker-copy { min-width: 128px; min-height: 44px; border: 0; border-radius: 8px; background: var(--dialog-accent-fill); color: var(--dialog-accent-ink); padding: 9px 18px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+                #share-picker-copy { min-width: 128px; min-height: 44px; border: 0; border-radius: var(--radius-input); background: var(--dialog-accent-fill); color: var(--dialog-accent-ink); padding: var(--space-xs) var(--space-md); font-weight: 800; cursor: pointer; white-space: nowrap; }
                 #share-picker-copy[data-state="loading"] { background: var(--dialog-warning); color: var(--dialog-ink); cursor: wait; }
                 #share-picker-copy[data-state="success"] { background: var(--dialog-accent-strong); color: var(--dialog-ink); }
                 #share-picker-copy[data-state="error"] { background: var(--dialog-error); color: var(--dialog-ink); }
-                #share-selection-dialog button:focus-visible, #share-selection-dialog input:focus-visible { outline: 3px solid var(--dialog-accent); outline-offset: 2px; }
-                @media (max-width: 600px) {
-                    .share-picker-head { padding: 14px 14px 10px; }
-                    .share-picker-head p { display: none; }
-                    .share-picker-body { grid-template-columns: minmax(0, 1fr); padding: 12px 14px; max-height: calc(100dvh - 170px); }
-                    .share-picker-foot { padding: 10px 14px 14px; }
+                #share-picker-copy:disabled { cursor: not-allowed; opacity: .55; }
+                #share-selection-dialog button:active { transform: translateY(1px); }
+                #share-selection-dialog button:focus-visible, #share-selection-dialog input:focus-visible { outline: 3px solid var(--dialog-focus); outline-offset: 2px; }
+                @media (hover: hover) and (pointer: fine) {
+                    .share-picker-close:hover, .share-picker-actions button:hover { background: var(--dialog-surface); }
+                    #share-picker-copy:hover:not(:disabled) { background: var(--dialog-accent-strong); }
+                }
+                @media (min-width: 40rem) {
+                    .share-picker-head { padding: var(--space-md) var(--space-lg) var(--space-sm); }
+                    .share-picker-head p { display: block; }
+                    .share-picker-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: var(--space-md) var(--space-lg); max-height: calc(100dvh - 210px); }
+                    .share-picker-foot { padding: var(--space-sm) var(--space-lg) var(--space-md); }
                 }
             </style>
             <div class="share-picker-head">
                 <div><h2>Select content to copy</h2><p>Choose sessions and members for the clipboard image.</p></div>
-                <button class="share-picker-close" aria-label="Close">X</button>
+                <button class="share-picker-close" aria-label="Close">×</button>
             </div>
             <div class="share-picker-body">
                 <section class="share-picker-section">
@@ -468,7 +476,7 @@ def render_share_controls(storage_key):
         }, { once: true });
 
         function updateCount() {
-            dialog.querySelector("#share-picker-count").textContent = `${selectedSessions.size} session(s) - ${selectedMembers.size} member(s)`;
+            dialog.querySelector("#share-picker-count").textContent = `${selectedSessions.size} session(s) · ${selectedMembers.size} member(s)`;
             const copyAction = dialog.querySelector("#share-picker-copy");
             if (copyAction.dataset.state === "idle") {
                 const canCopy = hasSelectedCards();
@@ -542,7 +550,8 @@ def render_share_controls(storage_key):
                 if (background && background !== "transparent" && !background.endsWith(", 0)")) return background;
                 node = node.parentElement;
             }
-            return window.parent.matchMedia("(prefers-color-scheme: dark)").matches ? "#0E1117" : "#FFFFFF";
+            const rootStyles = window.parent.getComputedStyle(window.parent.document.documentElement);
+            return rootStyles.getPropertyValue("--color-paper").trim() || "transparent";
         }
 
         function siapkanTarget() {

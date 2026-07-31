@@ -3,6 +3,7 @@
 import streamlit as st
 import time
 from datetime import datetime, timedelta, timezone
+from html import escape
 
 from core.api import get_active_exclusive_events, get_member_database, fetch_exclusive_detail
 from core.refresh import get_detail_refresh_interval
@@ -19,14 +20,13 @@ st.markdown(GLOBAL_CSS.replace('\n', '').replace('\r', ''), unsafe_allow_html=Tr
 st.markdown(
     """
     <div class="ldp-header">
-        <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
-        <p class="ldp-subtitle">Live Tracker for All JKT48 Exclusive Events</p>
-        <div class="credit-container">
-            <span>Developed by <a href="https://x.com/estrellawin19" target="_blank" rel="noopener noreferrer">@estrellawin19</a></span>
-            <a href="https://tako.id/Sportagame19Win" target="_blank" rel="noopener noreferrer" class="tako-btn">Support via Tako</a>
+        <div class="ldp-wordmark">
+            <span class="ldp-system-label">JKT48 / EXCLUSIVE DATA INDEX</span>
+            <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
         </div>
-        <div class="live-badge"><span class="live-dot"></span> LIVE MONITORING</div>
+        <a href="https://tako.id/Sportagame19Win" target="_blank" rel="noopener noreferrer" class="tako-btn">Support project ↗</a>
     </div>
+    <p class="ldp-subtitle">Find an event, isolate a date, and scan which member slots can still be purchased.</p>
     """,
     unsafe_allow_html=True
 )
@@ -79,10 +79,27 @@ def live_dashboard_fragment(
     if not raw_close_date and event_data.get("valid_date_to"):
         raw_close_date = event_data["valid_date_to"].split(".")[0]
 
-    st.markdown(f"### {event_data.get('title', 'Event')}")
-    st.caption(
-        f"**Category:** {event_data.get('category', '-').replace('_', ' ')} | "
-        f"**Price:** IDR {event_data.get('default_price', 0):,}"
+    source_class = "is-live" if wr_info.get("is_live") else "is-cached"
+    source_label = "LIVE API" if wr_info.get("is_live") else "CACHED DATA"
+    sync_label = wr_info.get("time") or "Waiting for first sync"
+    event_title = escape(str(event_data.get("title", "Event")))
+    event_category = escape(str(event_data.get("category", "-")).replace("_", " "))
+    event_price = int(event_data.get("default_price") or 0)
+    st.markdown(
+        f"""
+        <section class="event-index-head">
+            <div>
+                <div class="event-meta">{event_category} · IDR {event_price:,}</div>
+                <h2>{event_title}</h2>
+            </div>
+            <div class="source-readout {source_class}">
+                <strong>{source_label}</strong>
+                <span>{refresh_interval}s poll interval</span>
+                <small>{escape(str(sync_label))}</small>
+            </div>
+        </section>
+        """,
+        unsafe_allow_html=True,
     )
 
     is_event_closed = False
@@ -95,10 +112,7 @@ def live_dashboard_fragment(
             pass
 
     if has_event_detail and wr_info.get("is_live"):
-        st.caption(
-            f"Live data · Last synced {wr_info.get('time', '-')} · "
-            f"Refresh every {refresh_interval}s"
-        )
+        pass
     elif has_event_detail:
         st.warning(
             f"Live API unavailable ({wr_info.get('reason', 'Waiting Room / upstream down')}). "
@@ -131,7 +145,7 @@ def live_dashboard_fragment(
     total_tiket = total_sold + sisa_kuota
     sold_rate = (total_sold / total_tiket * 100) if total_tiket > 0 else 0.0
 
-    with st.container(border=True, key="summary_metrics"):
+    with st.container(border=False, key="summary_metrics"):
         col_m1, col_m2, col_m3 = st.columns(3, vertical_alignment="center")
         with col_m1:
             st.metric(label="Total Tickets", value=f"{total_tiket:,}")
@@ -192,7 +206,7 @@ all_events = sorted(
 available_categories = {"All Events": all_events, **category_filters} if all_events else {}
 
 if available_categories:
-    with st.container(border=True, key="event_filters"):
+    with st.container(border=False, key="event_filters"):
         col_cat, col_ev, col_search, col_toggle = st.columns([1.3, 2.5, 1.2, 1.2], vertical_alignment="bottom")
 
         with col_cat:
@@ -209,7 +223,7 @@ if available_categories:
             selected_event = next(e["data"] for e in events_in_cat if e["label"] == selected_event_label)
 
         with col_search:
-            global_query = st.text_input("Search member", placeholder="Michie, Gracie...").lower().strip()
+            global_query = st.text_input("Search member", placeholder="Michie, Gracie…").lower().strip()
 
         with col_toggle:
             available_only = st.toggle("Available only", value=False)
@@ -244,3 +258,13 @@ if available_categories:
         render_share_controls(f"share_selection_{selected_event.get('code', 'unknown')}")
 else:
     st.error("No active Exclusive events found or failed to fetch data.")
+
+st.markdown(
+    """
+    <footer class="index-footer">
+        <span>GLOBAL EXCLUSIVE MONITOR · DATA FROM JKT48 PUBLIC API</span>
+        <span>DEVELOPED BY <a href="https://x.com/estrellawin19" target="_blank" rel="noopener noreferrer">@ESTRELLAWIN19</a></span>
+    </footer>
+    """,
+    unsafe_allow_html=True,
+)
