@@ -1,35 +1,11 @@
 # app.py
 
-import requests
 import streamlit as st
 from datetime import datetime, timedelta
 
-from core.api import get_member_database, fetch_exclusive_detail
+from core.api import get_active_exclusive_events, get_member_database, fetch_exclusive_detail
 from ui.styles import GLOBAL_CSS
 from ui.components import render_event_cards, render_share_controls
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Referer": "https://jkt48.com/",
-    "Accept": "application/json, text/plain, */*"
-}
-
-
-@st.cache_data(ttl=300)
-def get_active_exclusive_events():
-    url = "https://jkt48.com/api/v1/exclusives?lang=id"
-    try:
-        response = requests.get(url, headers=HEADERS, timeout=10)
-        if response.status_code == 200:
-            res_json = response.json()
-            if res_json.get("status") is True and "data" in res_json:
-                data_content = res_json["data"]
-                event_list = data_content if isinstance(data_content, list) else data_content.get("data", [])
-                return [ev for ev in event_list if ev.get("code")]
-    except:
-        pass
-    return []
-
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon="🔴")
@@ -54,9 +30,9 @@ st.markdown(
 )
 
 
-@st.fragment(run_every=5)
+@st.fragment(run_every=15)
 def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_map, available_only, raw_close_date):
-    event_code = selected_event.get('code')
+    event_code = selected_event.get("code")
     fresh_event_data = fetch_exclusive_detail(event_code) if event_code else None
     event_data = fresh_event_data or selected_event
 
@@ -67,13 +43,13 @@ def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_ma
             now_wib = datetime.utcnow() + timedelta(hours=7)
             if now_wib >= dt_close_wib:
                 is_event_closed = True
-        except:
+        except Exception:
             pass
 
     wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
 
     if fresh_event_data:
-        current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S')
+        current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S")
         st.caption(f"Live data · Updated {current_time_wib} WIB")
     elif not wr_info.get("is_live"):
         st.warning(
@@ -88,11 +64,11 @@ def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_ma
 
     total_sold = 0
     sisa_kuota = 0
-    for sesi in event_data.get('session', []):
-        for m in sesi.get('session_detail', []):
+    for sesi in event_data.get("session", []):
+        for member in sesi.get("session_detail", []):
             try:
-                sold = int(m.get('tickets_sold') or 0)
-                avail = int(m.get('available_quota') or 0)
+                sold = int(member.get("tickets_sold") or 0)
+                avail = int(member.get("available_quota") or 0)
             except (TypeError, ValueError):
                 sold, avail = 0, 0
             total_sold += sold
@@ -118,15 +94,15 @@ active_events = get_active_exclusive_events()
 
 categories_dict = {}
 for ev in active_events:
-    cat = ev.get('category', '')
-    title = ev.get('title', 'Unknown Event')
-    raw_open_date = ev.get('valid_date_from', '')
+    cat = ev.get("category", "")
+    title = ev.get("title", "Unknown Event")
+    raw_open_date = ev.get("valid_date_from", "")
     open_date_str = ""
     if raw_open_date:
         try:
-            dt_wib = datetime.strptime(raw_open_date.split('.')[0].replace('Z', ''), "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
+            dt_wib = datetime.strptime(raw_open_date.split(".")[0].replace("Z", ""), "%Y-%m-%dT%H:%M:%S") + timedelta(hours=7)
             open_date_str = f"[{dt_wib.strftime('%d/%m/%Y')}] "
-        except:
+        except Exception:
             pass
 
     dropdown_label = f"{open_date_str}{title}"
@@ -145,7 +121,7 @@ for ev in active_events:
 
 available_categories = dict(sorted(
     categories_dict.items(),
-    key=lambda item: max(event["data"].get('valid_date_from', '') for event in item[1]),
+    key=lambda item: max(event["data"].get("valid_date_from", "") for event in item[1]),
     reverse=True,
 ))
 
@@ -169,14 +145,13 @@ if available_categories:
             available_only = st.toggle("Available only", value=False)
 
     raw_close_date = None
-    sales_periods = selected_event.get('sales_period', [])
-    for sp in sales_periods:
-        if sp.get('label') == 'General':
-            raw_close_date = sp.get('end_date')
+    for sales_period in selected_event.get("sales_period", []):
+        if sales_period.get("label") == "General":
+            raw_close_date = sales_period.get("end_date")
             break
 
-    if not raw_close_date and selected_event.get('valid_date_to'):
-        raw_close_date = selected_event.get('valid_date_to').split('.')[0]
+    if not raw_close_date and selected_event.get("valid_date_to"):
+        raw_close_date = selected_event.get("valid_date_to").split(".")[0]
 
     st.markdown(f"### {selected_event.get('title', 'Event')}")
     st.caption(f"**Category:** {selected_event.get('category', '-').replace('_', ' ')} | **Price:** IDR {selected_event.get('default_price', 0):,}")
