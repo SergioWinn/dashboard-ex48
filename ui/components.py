@@ -513,7 +513,7 @@ def render_share_controls(storage_key):
                 #share-picker-copy { min-width: 128px; min-height: 44px; border: 0; border-radius: var(--radius-input); background: var(--dialog-accent-fill); color: var(--dialog-accent-ink); padding: var(--space-xs) var(--space-md); font-weight: 800; cursor: pointer; white-space: nowrap; }
                 #share-picker-copy[data-state="loading"] { background: var(--dialog-warning); color: var(--dialog-ink); cursor: wait; }
                 #share-picker-copy[data-state="success"] { background: var(--dialog-accent-strong); color: var(--dialog-ink); }
-                #share-picker-copy[data-state="downloaded"], #share-picker-copy[data-state="shared"] { background: var(--dialog-accent-strong); color: var(--dialog-ink); }
+                #share-picker-copy[data-state="blocked"] { background: var(--dialog-warning); color: var(--color-status-warning-ink); }
                 #share-picker-copy[data-state="error"] { background: var(--dialog-error); color: var(--dialog-ink); }
                 #share-picker-copy:disabled { cursor: not-allowed; opacity: .55; }
                 #share-selection-dialog button:active { transform: translateY(1px); }
@@ -785,8 +785,7 @@ def render_share_controls(storage_key):
                 idle: ["Copy selected", "Copy selected cards to clipboard"],
                 loading: ["Preparing…", "Preparing image"],
                 success: ["Copied", "Image copied"],
-                downloaded: ["Downloaded", "PNG image downloaded"],
-                shared: ["Shared", "Image shared"],
+                blocked: ["Clipboard blocked", "Clipboard access blocked"],
                 error: ["Capture failed", "Image capture failed"]
             };
             const [label, accessibleLabel] = states[state];
@@ -888,21 +887,10 @@ def render_share_controls(storage_key):
             return canvasToBlob(canvas);
         }
 
-        function downloadBlob(blob) {
-            const urlApi = window.parent.URL || URL;
-            const objectUrl = urlApi.createObjectURL(blob);
-            const link = window.parent.document.createElement("a");
-            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            link.href = objectUrl;
-            link.download = `jkt48-exclusive-${timestamp}.png`;
-            link.style.display = "none";
-            window.parent.document.body.appendChild(link);
-            link.click();
-            link.remove();
-            setTimeout(() => urlApi.revokeObjectURL(objectUrl), 1000);
-        }
-
         function captureErrorMessage(error) {
+            if (error?.name === "NotAllowedError" || String(error?.message).includes("Clipboard")) {
+                return "Browser blocked image clipboard. Allow clipboard access for this site, then try again.";
+            }
             if (error?.name === "SecurityError") return "A photo blocked image capture. Reload the page and try again.";
             if (String(error?.message).includes("library")) return "Capture tools did not load. Reload the page and try again.";
             if (String(error?.message).includes("too large")) return "The selection is too large. Select fewer sessions or members and try again.";
@@ -928,40 +916,49 @@ def render_share_controls(storage_key):
             setFeedback("Preparing selected cards…");
             try {
                 const blobPromise = renderCaptureBlob(state);
-                const clipboard = navigator.clipboard || window.parent.navigator.clipboard;
-                const ClipboardItemClass = window.ClipboardItem || window.parent.ClipboardItem;
-                const supportsPng = !ClipboardItemClass?.supports || ClipboardItemClass.supports("image/png");
-                let clipboardError = null;
+                const clipboardContexts = [
+                    {
+                        clipboard: window.parent.navigator.clipboard,
+                        ClipboardItemClass: window.parent.ClipboardItem,
+                    },
+                    {
+                        clipboard: navigator.clipboard,
+                        ClipboardItemClass: window.ClipboardItem,
+                    },
+                ];
+                let clipboardError = new Error("Clipboard API is unavailable");
+                let copied = false;
 
-                if (clipboard?.write && ClipboardItemClass && supportsPng) {
+                for (const context of clipboardContexts) {
+                    const { clipboard, ClipboardItemClass } = context;
+                    if (!clipboard?.write || !ClipboardItemClass) continue;
+                    if (ClipboardItemClass.supports && !ClipboardItemClass.supports("image/png")) continue;
                     try {
                         await clipboard.write([new ClipboardItemClass({ "image/png": blobPromise })]);
+                        copied = true;
                         setCopyState(button, "success");
                         setFeedback("Copied to clipboard.", "success");
+                        break;
                     } catch (error) {
                         clipboardError = error;
                     }
-                } else {
-                    clipboardError = new Error("Image clipboard is not supported");
                 }
 
-                if (clipboardError) {
-                    const blob = await blobPromise;
-                    downloadBlob(blob);
-                    setCopyState(button, "downloaded");
-                    setFeedback("Clipboard permission was unavailable, so the PNG was downloaded instead.", "success");
-                    console.warn("Clipboard write unavailable; downloaded PNG instead", clipboardError);
+                if (!copied) {
+                    await blobPromise;
+                    throw clipboardError;
                 }
             } catch (error) {
                 console.error("Copy image failed", error);
                 const message = captureErrorMessage(error);
-                setCopyState(button, "error", message);
+                const isClipboardError = error?.name === "NotAllowedError" || String(error?.message).includes("Clipboard");
+                setCopyState(button, isClipboardError ? "blocked" : "error", message);
                 setFeedback(message, "error");
             } finally {
                 state.wrapper.remove();
                 activeCaptureWrapper = null;
                 button.disabled = false;
-                const didComplete = ["success", "downloaded", "shared"].includes(button.dataset.state);
+                const didComplete = button.dataset.state === "success";
                 resetTimer = setTimeout(() => {
                     setCopyState(button, "idle");
                     if (didComplete) dialog.close();
