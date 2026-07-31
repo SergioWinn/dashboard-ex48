@@ -31,10 +31,37 @@ st.markdown(
 
 
 @st.fragment(run_every=15)
-def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_map, available_only, raw_close_date):
+def live_dashboard_fragment(
+    selected_event,
+    search_query,
+    nickname_map,
+    photo_map,
+    available_only,
+    raw_close_date,
+    current_event_codes,
+):
+    refreshed_events = get_active_exclusive_events()
+    refreshed_codes = {event.get("code") for event in refreshed_events if event.get("code")}
+    if refreshed_codes.difference(current_event_codes):
+        st.rerun()
+
     event_code = selected_event.get("code")
     fresh_event_data = fetch_exclusive_detail(event_code) if event_code else None
     event_data = fresh_event_data or selected_event
+
+    if not raw_close_date:
+        for sales_period in event_data.get("sales_period", []):
+            if sales_period.get("label") == "General":
+                raw_close_date = sales_period.get("end_date")
+                break
+    if not raw_close_date and event_data.get("valid_date_to"):
+        raw_close_date = event_data["valid_date_to"].split(".")[0]
+
+    st.markdown(f"### {event_data.get('title', 'Event')}")
+    st.caption(
+        f"**Category:** {event_data.get('category', '-').replace('_', ' ')} | "
+        f"**Price:** IDR {event_data.get('default_price', 0):,}"
+    )
 
     is_event_closed = False
     if raw_close_date:
@@ -52,7 +79,10 @@ def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_ma
         current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S")
         st.caption(f"Live data · Updated {current_time_wib} WIB")
     elif fresh_event_data:
-        st.warning(f"Live API unavailable. Showing bundled/cache fallback ({wr_info.get('time')}).")
+        st.warning(
+            f"Live API unavailable ({wr_info.get('reason', 'Waiting Room / upstream down')}). "
+            f"Showing last known good data ({wr_info.get('time')})."
+        )
     elif not wr_info.get("is_live"):
         st.warning(
             f"**JKT48 Server is currently in Cloudflare Waiting Room / Down.** "
@@ -171,10 +201,15 @@ if available_categories:
     if not raw_close_date and selected_event.get("valid_date_to"):
         raw_close_date = selected_event.get("valid_date_to").split(".")[0]
 
-    st.markdown(f"### {selected_event.get('title', 'Event')}")
-    st.caption(f"**Category:** {selected_event.get('category', '-').replace('_', ' ')} | **Price:** IDR {selected_event.get('default_price', 0):,}")
-
-    live_dashboard_fragment(selected_event, global_query, nickname_map, photo_map, available_only, raw_close_date)
+    live_dashboard_fragment(
+        selected_event,
+        global_query,
+        nickname_map,
+        photo_map,
+        available_only,
+        raw_close_date,
+        tuple(event.get("code") for event in active_events if event.get("code")),
+    )
 
     try:
         admin_keys = st.secrets.get("ADMIN_KEYS", [])

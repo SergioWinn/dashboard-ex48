@@ -2,7 +2,6 @@
 
 import json
 import os
-import time
 from datetime import datetime, timedelta
 
 import streamlit as st
@@ -22,6 +21,7 @@ FALLBACK_HEADERS = {
     **BASE_HEADERS,
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
 }
+RUNTIME_CACHE_DIR = ".runtime_cache"
 KNOWN_EXCLUSIVE_EVENTS = [
     {"exclusive_id": 936, "category": "PHOTOCARD", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/ex7b6d-thumb-d71768.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/ex7b6d-preview-8a69c1.jpg", "code": "EXE588", "valid_date_from": "2026-04-02T11:00:00.000Z", "sort_order": 1, "title": "Personal Meet and Greet Festival: LOVE DREAM PASSION, Meet & Greet - 23 May", "short_description": ""},
     {"exclusive_id": 962, "category": "DIGITAL_PHOTOBOOK", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/07/ex7f6c-thumb-a2122e.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/07/ex7f6c-preview-872f71.jpg", "code": "EX7F6C", "valid_date_from": "2026-07-16T13:00:00.000Z", "sort_order": None, "title": "JKT48 Request Hour 2026 Setlist Best 40", "short_description": ""},
@@ -39,7 +39,6 @@ KNOWN_EXCLUSIVE_EVENTS = [
     {"exclusive_id": 944, "category": "DIGITAL_PHOTOBOOK", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/exbe10-thumb-37400f.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/exbe10-preview-98404e.jpg", "code": "EXBE10", "valid_date_from": "2026-04-10T15:00:00.000Z", "sort_order": None, "title": "Love Dream Passion - Music Video Behind the Scenes", "short_description": ""},
     {"exclusive_id": 933, "category": "TWO_SHOT", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/03/ex579e-thumb-c637b9.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/03/ex579e-preview-e420c5.jpg", "code": "EX579E", "valid_date_from": "2026-04-01T11:00:00.000Z", "sort_order": None, "title": "Personal Meet and Greet Festival: LOVE DREAM PASSION, 2Shot - 23 May", "short_description": ""},
 ]
-KNOWN_EXCLUSIVE_CODES = [event["code"] for event in KNOWN_EXCLUSIVE_EVENTS]
 EMERGENCY_EXCLUSIVE_DETAILS = {
     "EX7F6C": {
         "exclusive_id": 962,
@@ -72,50 +71,91 @@ EMERGENCY_EXCLUSIVE_DETAILS = {
 }
 
 
-@st.cache_resource
-def get_http_session():
-    session = browser_requests.Session()
-    session.headers.update(FALLBACK_HEADERS)
-    return session
+class LiveApiUnavailable(RuntimeError):
+    pass
 
 
-def _set_wr_status(code, is_live, time_label):
+def _set_wr_status(code, is_live, time_label, reason=""):
     try:
-        st.session_state[f"wr_status_{code}"] = {"is_live": is_live, "time": time_label}
+        st.session_state[f"wr_status_{code}"] = {
+            "is_live": is_live,
+            "time": time_label,
+            "reason": reason,
+        }
     except Exception:
         pass
 
 
 def _http_get(url, timeout):
-    session = get_http_session()
-    kwargs = {"timeout": timeout, "headers": BASE_HEADERS}
+    kwargs = {"timeout": timeout, "headers": FALLBACK_HEADERS}
     if USING_BROWSER_CLIENT:
-        kwargs["impersonate"] = "chrome"
-    return session.get(url, **kwargs)
+        responses = []
+        last_error = None
+        for browser in ("chrome136", "safari184"):
+            try:
+                response = browser_requests.get(url, impersonate=browser, **kwargs)
+            except Exception as error:
+                last_error = error
+                continue
+            responses.append(response)
+            content_type = response.headers.get("content-type", "").lower()
+            if response.status_code == 200 and "json" in content_type:
+                return response
+        if responses:
+            return responses[-1]
+        raise last_error or RuntimeError("No HTTP response")
+    return browser_requests.get(url, **kwargs)
 
 
 def _get_json(url, timeout):
-    response = _http_get(url, timeout)
+    try:
+        response = _http_get(url, timeout)
+    except Exception as error:
+        raise LiveApiUnavailable(f"Connection failed: {error}") from error
+
+    content_type = response.headers.get("content-type", "").lower()
     if response.status_code != 200:
-        raise RuntimeError(f"HTTP {response.status_code}")
-    return response.json()
+        reason = "Cloudflare challenge" if response.status_code == 403 else f"HTTP {response.status_code}"
+        raise LiveApiUnavailable(reason)
+    if "json" not in content_type:
+        body_start = response.text[:1000].lower()
+        if "waiting room" in body_start or "__cfwaitingroom" in body_start:
+            reason = "Cloudflare Waiting Room"
+        elif "just a moment" in body_start or "cf-chl" in body_start:
+            reason = "Cloudflare challenge"
+        else:
+            reason = f"Unexpected content type: {content_type or 'unknown'}"
+        raise LiveApiUnavailable(reason)
+
+    try:
+        payload = response.json()
+    except Exception as error:
+        raise LiveApiUnavailable("Invalid JSON response") from error
+    if not isinstance(payload, dict) or payload.get("status") is not True:
+        message = payload.get("message", "Invalid API response") if isinstance(payload, dict) else "Invalid API response"
+        raise LiveApiUnavailable(message)
+    return payload
 
 
-def _event_summary_from_detail(detail):
-    return {
-        "exclusive_id": detail.get("exclusive_id"),
-        "category": detail.get("category"),
-        "thumbnail_image": detail.get("thumbnail_image"),
-        "preview_image": detail.get("preview_image"),
-        "code": detail.get("code"),
-        "valid_date_from": detail.get("valid_date_from"),
-        "sort_order": detail.get("sort_order"),
-        "title": detail.get("title"),
-        "short_description": detail.get("short_description", ""),
-        "default_price": detail.get("default_price", 0),
-        "valid_date_to": detail.get("valid_date_to"),
-        "sales_period": detail.get("sales_period", []),
-    }
+def _write_cache(cache_file, payload):
+    try:
+        parent_dir = os.path.dirname(cache_file)
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
+        with open(cache_file, "w", encoding="utf-8") as file:
+            json.dump(payload, file)
+    except OSError:
+        pass
+
+
+def _read_cache(cache_file):
+    if not os.path.exists(cache_file):
+        return None
+    try:
+        with open(cache_file, "r", encoding="utf-8") as file:
+            return json.load(file)
+    except (OSError, ValueError):
+        return None
 
 
 @st.cache_data(ttl=3600)
@@ -139,71 +179,61 @@ def get_member_database():
     return nickname_map, photo_map
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=30)
 def get_active_exclusive_events():
     url = "https://jkt48.com/api/v1/exclusives?lang=id"
+    cache_file = os.path.join(RUNTIME_CACHE_DIR, "exclusive_events.json")
     try:
         res_json = _get_json(url, 20)
-        if res_json.get("status") is True and "data" in res_json:
-            data_content = res_json["data"]
-            event_list = data_content if isinstance(data_content, list) else data_content.get("data", [])
-            events_by_code = {event["code"]: event.copy() for event in KNOWN_EXCLUSIVE_EVENTS}
-            for event in event_list:
-                code = event.get("code")
-                if code:
-                    events_by_code[code] = {**events_by_code.get(code, {}), **event}
-            return sorted(
-                events_by_code.values(),
-                key=lambda event: event.get("valid_date_from") or "",
-                reverse=True,
-            )
-    except Exception:
-        pass
-
-    hydrated_events = []
-    for code in KNOWN_EXCLUSIVE_CODES:
-        detail = fetch_exclusive_detail(code)
-        if detail:
-            hydrated_events.append(_event_summary_from_detail(detail))
-    if hydrated_events:
-        return hydrated_events
-
-    return KNOWN_EXCLUSIVE_EVENTS.copy()
+        data_content = res_json.get("data", [])
+        event_list = data_content if isinstance(data_content, list) else data_content.get("data", [])
+        live_events = [event for event in event_list if event.get("code")]
+        if not live_events:
+            raise LiveApiUnavailable("Exclusive event list is empty")
+        live_events.sort(key=lambda event: event.get("valid_date_from") or "", reverse=True)
+        now_wib = datetime.utcnow() + timedelta(hours=7)
+        _write_cache(
+            cache_file,
+            {"last_updated": now_wib.strftime('%d/%m/%Y %H:%M:%S WIB'), "data": live_events},
+        )
+        return live_events
+    except LiveApiUnavailable:
+        cached_events = _read_cache(cache_file)
+        if cached_events and cached_events.get("data"):
+            return cached_events["data"]
+        return KNOWN_EXCLUSIVE_EVENTS.copy()
 
 
-@st.cache_data(ttl=15)
 def fetch_exclusive_detail(code):
     url = f"https://jkt48.com/api/v1/exclusives/{code}?lang=id"
-    cache_file = f"cache_exclusive_{code}.json"
+    cache_file = os.path.join(RUNTIME_CACHE_DIR, f"exclusive_{code}.json")
+    bundled_cache_file = f"cache_exclusive_{code}.json"
     now_wib = datetime.utcnow() + timedelta(hours=7)
     waktu_sekarang = now_wib.strftime('%d/%m/%Y %H:%M:%S WIB')
 
-    for timeout in (15, 25):
-        try:
-            res_json = _get_json(url, timeout)
-            data = res_json.get("data")
-            if data:
-                cache_payload = {"last_updated": waktu_sekarang, "data": data}
-                with open(cache_file, "w", encoding="utf-8") as f:
-                    json.dump(cache_payload, f)
-                _set_wr_status(code, True, waktu_sekarang)
-                return data
-        except Exception:
-            time.sleep(0.5)
-
-    if os.path.exists(cache_file):
-        try:
-            with open(cache_file, "r", encoding="utf-8") as f:
-                cache_payload = json.load(f)
-            _set_wr_status(code, False, cache_payload.get("last_updated", "Unknown"))
-            return cache_payload.get("data")
-        except Exception:
-            pass
+    try:
+        res_json = _get_json(url, 12)
+        data = res_json.get("data")
+        if not isinstance(data, dict) or not data.get("code"):
+            raise LiveApiUnavailable("Exclusive detail is missing")
+        _set_wr_status(code, True, waktu_sekarang)
+        _write_cache(cache_file, {"last_updated": waktu_sekarang, "data": data})
+        return data
+    except LiveApiUnavailable as error:
+        cache_payload = _read_cache(cache_file) or _read_cache(bundled_cache_file)
+        if cache_payload and cache_payload.get("data"):
+            _set_wr_status(
+                code,
+                False,
+                cache_payload.get("last_updated", "Unknown"),
+                str(error),
+            )
+            return cache_payload["data"]
 
     emergency_data = EMERGENCY_EXCLUSIVE_DETAILS.get(code)
     if emergency_data:
-        _set_wr_status(code, False, "Bundled emergency fallback")
+        _set_wr_status(code, False, "Bundled emergency fallback", "Live API unavailable")
         return emergency_data
 
-    _set_wr_status(code, False, "No Cache Available")
+    _set_wr_status(code, False, "No Cache Available", "Live API unavailable")
     return None
