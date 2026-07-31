@@ -581,13 +581,23 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 }
 
 .capture-mode .c-photo {
-    width: 72px !important;
-    height: 72px !important;
-    flex-basis: 72px !important;
+    width: 64px !important;
+    height: 64px !important;
+    flex-basis: 64px !important;
 }
 
 .capture-mode .c-identity {
-    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-xs);
+}
+
+.capture-mode .c-member {
+    min-height: 2.4em;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .capture-mode .c-photo-image {
