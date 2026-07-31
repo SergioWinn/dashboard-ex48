@@ -486,7 +486,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     overflow: hidden;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
 }
 
 .c-prog-fill {
@@ -505,20 +505,16 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 .c-prog-text {
     position: relative;
     z-index: 1;
-    min-width: min(6.5rem, 78%);
-    min-height: 30px;
-    margin-left: auto;
-    padding-inline: var(--space-xs);
-    background: var(--color-graphite);
     color: var(--color-graphite-ink);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     font-family: var(--font-body);
     font-size: var(--text-xs);
     font-weight: 600;
     letter-spacing: 0.05em;
-    text-shadow: none;
+    text-shadow:
+        -1px 0 var(--color-overlay),
+        1px 0 var(--color-overlay),
+        0 -1px var(--color-overlay),
+        0 1px var(--color-overlay);
     white-space: nowrap;
 }
 
