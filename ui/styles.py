@@ -154,6 +154,14 @@ body,
     background: var(--color-warning-soft);
 }
 
+.source-readout.is-unavailable {
+    background: var(--color-danger-soft);
+}
+
+.source-readout.is-unavailable strong {
+    color: var(--color-ink);
+}
+
 .source-readout small {
     margin-top: var(--space-2xs);
     overflow-wrap: anywhere;

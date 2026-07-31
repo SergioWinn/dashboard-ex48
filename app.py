@@ -82,9 +82,21 @@ def live_dashboard_fragment(
     refresh_interval = get_detail_refresh_interval(event_data, wr_info.get("is_live", True), now_wib)
     has_event_detail = "session" in event_data
 
-    source_class = "is-live" if wr_info.get("is_live") else "is-cached"
-    source_label = "LIVE API" if wr_info.get("is_live") else "CACHED DATA"
-    sync_label = wr_info.get("time") or "Waiting for first sync"
+    if not has_event_detail:
+        source_class = "is-unavailable"
+        source_label = "LIST ONLY"
+        source_detail = "Session details unavailable"
+        sync_label = f"Retrying every {refresh_interval}s"
+    elif wr_info.get("is_live"):
+        source_class = "is-live"
+        source_label = "LIVE DATA"
+        source_detail = f"{refresh_interval}s poll interval"
+        sync_label = wr_info.get("time") or "Waiting for first sync"
+    else:
+        source_class = "is-cached"
+        source_label = "CACHED DATA"
+        source_detail = f"Retrying every {refresh_interval}s"
+        sync_label = wr_info.get("time") or "Unknown snapshot time"
     event_title = escape(str(event_data.get("title", "Event")))
     raw_category = str(event_data.get("category", "-"))
     event_category = escape(CATEGORY_LABELS.get(raw_category, raw_category.replace("_", " ")))
@@ -98,7 +110,7 @@ def live_dashboard_fragment(
             </div>
             <div class="source-readout {source_class}">
                 <strong>{source_label}</strong>
-                <span>{refresh_interval}s poll interval</span>
+                <span>{source_detail}</span>
                 <small>{escape(str(sync_label))}</small>
             </div>
         </section>
@@ -117,11 +129,14 @@ def live_dashboard_fragment(
         )
     elif not has_event_detail and not wr_info.get("is_live"):
         st.warning(
-            f"**JKT48 Server is currently in Cloudflare Waiting Room / Down.** "
-            f"Showing last known good data backup (Last Updated: {wr_info.get('time')})."
+            f"Event sessions are unavailable ({wr_info.get('reason', 'Waiting Room / upstream down')}). "
+            f"No cached session data exists for this event yet. Retrying every {refresh_interval}s."
         )
     else:
-        st.warning("Event details are temporarily unavailable. Showing event list data only.")
+        st.warning(
+            f"Session and ticket details are unavailable. Showing event list information only; "
+            f"retrying every {refresh_interval}s."
+        )
 
     if not has_event_detail:
         return
