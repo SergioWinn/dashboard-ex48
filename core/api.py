@@ -147,7 +147,16 @@ def get_active_exclusive_events():
         if res_json.get("status") is True and "data" in res_json:
             data_content = res_json["data"]
             event_list = data_content if isinstance(data_content, list) else data_content.get("data", [])
-            return [ev for ev in event_list if ev.get("code")]
+            events_by_code = {event["code"]: event.copy() for event in KNOWN_EXCLUSIVE_EVENTS}
+            for event in event_list:
+                code = event.get("code")
+                if code:
+                    events_by_code[code] = {**events_by_code.get(code, {}), **event}
+            return sorted(
+                events_by_code.values(),
+                key=lambda event: event.get("valid_date_from") or "",
+                reverse=True,
+            )
     except Exception:
         pass
 
