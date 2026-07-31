@@ -1,9 +1,11 @@
 # app.py
 
 import streamlit as st
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 
 from core.api import get_active_exclusive_events, get_member_database, fetch_exclusive_detail
+from core.refresh import get_detail_refresh_interval
 from ui.styles import GLOBAL_CSS
 from ui.components import render_event_cards, render_share_controls
 
@@ -30,7 +32,7 @@ st.markdown(
 )
 
 
-@st.fragment(run_every=15)
+@st.fragment(run_every=5)
 def live_dashboard_fragment(
     selected_event,
     search_query,
@@ -46,8 +48,28 @@ def live_dashboard_fragment(
         st.rerun()
 
     event_code = selected_event.get("code")
-    fresh_event_data = fetch_exclusive_detail(event_code) if event_code else None
-    event_data = fresh_event_data or selected_event
+    event_state_key = f"event_data_{event_code}"
+    attempt_state_key = f"event_fetch_attempt_{event_code}"
+    event_data = st.session_state.get(event_state_key) or selected_event
+    wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
+    now_wib = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=7)
+    refresh_interval = get_detail_refresh_interval(event_data, wr_info.get("is_live", True), now_wib)
+    last_attempt = st.session_state.get(attempt_state_key, 0.0)
+
+    if event_code and (
+        event_state_key not in st.session_state
+        or time.monotonic() - last_attempt >= refresh_interval
+    ):
+        fetched_event_data = fetch_exclusive_detail(event_code)
+        st.session_state[attempt_state_key] = time.monotonic()
+        if fetched_event_data:
+            st.session_state[event_state_key] = fetched_event_data
+            event_data = fetched_event_data
+
+    wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
+    now_wib = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=7)
+    refresh_interval = get_detail_refresh_interval(event_data, wr_info.get("is_live", True), now_wib)
+    has_event_detail = "session" in event_data
 
     if not raw_close_date:
         for sales_period in event_data.get("sales_period", []):
@@ -67,21 +89,21 @@ def live_dashboard_fragment(
     if raw_close_date:
         try:
             dt_close_wib = datetime.strptime(raw_close_date, "%Y-%m-%dT%H:%M:%S")
-            now_wib = datetime.utcnow() + timedelta(hours=7)
             if now_wib >= dt_close_wib:
                 is_event_closed = True
         except Exception:
             pass
 
-    wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
-
-    if fresh_event_data and wr_info.get("is_live"):
-        current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime("%H:%M:%S")
-        st.caption(f"Live data · Updated {current_time_wib} WIB")
-    elif fresh_event_data:
+    if has_event_detail and wr_info.get("is_live"):
+        st.caption(
+            f"Live data · Last synced {wr_info.get('time', '-')} · "
+            f"Refresh every {refresh_interval}s"
+        )
+    elif has_event_detail:
         st.warning(
             f"Live API unavailable ({wr_info.get('reason', 'Waiting Room / upstream down')}). "
-            f"Showing last known good data ({wr_info.get('time')})."
+            f"Showing last known good data ({wr_info.get('time')}). "
+            f"Retrying every {refresh_interval}s."
         )
     elif not wr_info.get("is_live"):
         st.warning(
@@ -91,7 +113,7 @@ def live_dashboard_fragment(
     else:
         st.warning("Event details are temporarily unavailable. Showing event list data only.")
 
-    if not fresh_event_data:
+    if not has_event_detail:
         return
 
     total_sold = 0

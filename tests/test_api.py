@@ -1,11 +1,13 @@
 import json
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
 from core.api import (
     KNOWN_EXCLUSIVE_EVENTS,
     LiveApiUnavailable,
+    clear_exclusive_detail_cache,
     fetch_exclusive_detail,
     get_active_exclusive_events,
 )
@@ -14,6 +16,7 @@ from core.api import (
 class GetActiveExclusiveEventsTest(unittest.TestCase):
     def tearDown(self):
         get_active_exclusive_events.clear()
+        clear_exclusive_detail_cache()
 
     @patch("core.api._write_cache")
     @patch("core.api._get_json")
@@ -49,6 +52,20 @@ class GetActiveExclusiveEventsTest(unittest.TestCase):
         detail = fetch_exclusive_detail("EXNEW1")
 
         self.assertEqual(detail, live_detail)
+
+    @patch("core.api._set_wr_status")
+    @patch("core.api._write_cache")
+    @patch("core.api._get_json")
+    def test_detail_request_is_shared_for_all_users(self, get_json, _write_cache, set_status):
+        live_detail = {"code": "EXSHARED", "session": []}
+        get_json.return_value = {"status": True, "data": live_detail}
+
+        with ThreadPoolExecutor(max_workers=20) as executor:
+            details = list(executor.map(fetch_exclusive_detail, ["EXSHARED"] * 20))
+
+        self.assertEqual(details, [live_detail] * 20)
+        self.assertEqual(get_json.call_count, 1)
+        self.assertEqual(set_status.call_count, 20)
 
     def test_every_known_event_has_bundled_detail(self):
         project_root = Path(__file__).parent.parent

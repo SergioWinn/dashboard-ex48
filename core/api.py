@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import streamlit as st
 
@@ -191,7 +191,7 @@ def get_active_exclusive_events():
         if not live_events:
             raise LiveApiUnavailable("Exclusive event list is empty")
         live_events.sort(key=lambda event: event.get("valid_date_from") or "", reverse=True)
-        now_wib = datetime.utcnow() + timedelta(hours=7)
+        now_wib = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=7)
         _write_cache(
             cache_file,
             {"last_updated": now_wib.strftime('%d/%m/%Y %H:%M:%S WIB'), "data": live_events},
@@ -204,11 +204,12 @@ def get_active_exclusive_events():
         return KNOWN_EXCLUSIVE_EVENTS.copy()
 
 
-def fetch_exclusive_detail(code):
+@st.cache_data(ttl=5, show_spinner=False)
+def _fetch_exclusive_detail_shared(code):
     url = f"https://jkt48.com/api/v1/exclusives/{code}?lang=id"
     cache_file = os.path.join(RUNTIME_CACHE_DIR, f"exclusive_{code}.json")
     bundled_cache_file = os.path.join("data", "fallback", f"{code}.json")
-    now_wib = datetime.utcnow() + timedelta(hours=7)
+    now_wib = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=7)
     waktu_sekarang = now_wib.strftime('%d/%m/%Y %H:%M:%S WIB')
 
     try:
@@ -216,24 +217,50 @@ def fetch_exclusive_detail(code):
         data = res_json.get("data")
         if not isinstance(data, dict) or not data.get("code"):
             raise LiveApiUnavailable("Exclusive detail is missing")
-        _set_wr_status(code, True, waktu_sekarang)
         _write_cache(cache_file, {"last_updated": waktu_sekarang, "data": data})
-        return data
+        return {
+            "data": data,
+            "is_live": True,
+            "reason": "",
+            "time": waktu_sekarang,
+        }
     except LiveApiUnavailable as error:
         cache_payload = _read_cache(cache_file) or _read_cache(bundled_cache_file)
         if cache_payload and cache_payload.get("data"):
-            _set_wr_status(
-                code,
-                False,
-                cache_payload.get("last_updated", "Unknown"),
-                str(error),
-            )
-            return cache_payload["data"]
+            return {
+                "data": cache_payload["data"],
+                "is_live": False,
+                "reason": str(error),
+                "time": cache_payload.get("last_updated", "Unknown"),
+            }
 
     emergency_data = EMERGENCY_EXCLUSIVE_DETAILS.get(code)
     if emergency_data:
-        _set_wr_status(code, False, "Bundled emergency fallback", "Live API unavailable")
-        return emergency_data
+        return {
+            "data": emergency_data,
+            "is_live": False,
+            "reason": "Live API unavailable",
+            "time": "Bundled emergency fallback",
+        }
 
-    _set_wr_status(code, False, "No Cache Available", "Live API unavailable")
-    return None
+    return {
+        "data": None,
+        "is_live": False,
+        "reason": "Live API unavailable",
+        "time": "No Cache Available",
+    }
+
+
+def fetch_exclusive_detail(code):
+    result = _fetch_exclusive_detail_shared(code)
+    _set_wr_status(
+        code,
+        result["is_live"],
+        result["time"],
+        result["reason"],
+    )
+    return result["data"]
+
+
+def clear_exclusive_detail_cache():
+    _fetch_exclusive_detail_shared.clear()
