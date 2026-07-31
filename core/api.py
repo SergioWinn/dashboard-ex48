@@ -22,19 +22,24 @@ FALLBACK_HEADERS = {
     **BASE_HEADERS,
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
 }
-EMERGENCY_EXCLUSIVE_EVENTS = [
-    {
-        "exclusive_id": 962,
-        "category": "DIGITAL_PHOTOBOOK",
-        "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/07/ex7f6c-thumb-a2122e.jpg",
-        "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/07/ex7f6c-preview-872f71.jpg",
-        "code": "EX7F6C",
-        "valid_date_from": "2026-07-16T13:00:00.000Z",
-        "sort_order": None,
-        "title": "JKT48 Request Hour 2026 Setlist Best 40",
-        "short_description": "",
-    }
+KNOWN_EXCLUSIVE_EVENTS = [
+    {"exclusive_id": 936, "category": "PHOTOCARD", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/ex7b6d-thumb-d71768.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/ex7b6d-preview-8a69c1.jpg", "code": "EXE588", "valid_date_from": "2026-04-02T11:00:00.000Z", "sort_order": 1, "title": "Personal Meet and Greet Festival: LOVE DREAM PASSION, Meet & Greet - 23 May", "short_description": ""},
+    {"exclusive_id": 962, "category": "DIGITAL_PHOTOBOOK", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/07/ex7f6c-thumb-a2122e.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/07/ex7f6c-preview-872f71.jpg", "code": "EX7F6C", "valid_date_from": "2026-07-16T13:00:00.000Z", "sort_order": None, "title": "JKT48 Request Hour 2026 Setlist Best 40", "short_description": ""},
+    {"exclusive_id": 960, "category": "TWO_SHOT", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/exfb66-thumb-ba1e85.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/exfb66-preview-bb4a0e.jpg", "code": "EXFB66", "valid_date_from": "2026-06-22T05:00:00.000Z", "sort_order": None, "title": "Team Love & Team Dream, 2shot Yogyakarta", "short_description": ""},
+    {"exclusive_id": 959, "category": "PHOTOCARD", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/exa340-thumb-bc4526.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/exa340-preview-c338ee.jpg", "code": "EXA340", "valid_date_from": "2026-06-22T05:00:00.000Z", "sort_order": None, "title": "Team Love & Team Dream, Meet and Greet Yogyakarta", "short_description": ""},
+    {"exclusive_id": 958, "category": "TWO_SHOT", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/ex38a5-thumb-ec17a2.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/ex38a5-preview-108c95.jpg", "code": "EX38A5", "valid_date_from": "2026-06-22T05:00:00.000Z", "sort_order": None, "title": "Team Passion, 2shot Surabaya", "short_description": ""},
+    {"exclusive_id": 957, "category": "PHOTOCARD", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/exafb8-thumb-26d9a3.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/exafb8-preview-b668a4.jpg", "code": "EXAFB8", "valid_date_from": "2026-06-22T05:00:00.000Z", "sort_order": None, "title": "Team Passion, Meet and Greet Surabaya", "short_description": ""},
+    {"exclusive_id": 954, "category": "TWO_SHOT", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/ex3773-thumb-f96b44.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/ex3773-preview-cbccce.jpg", "code": "EX3773", "valid_date_from": "2026-06-15T05:00:00.000Z", "sort_order": None, "title": "Team Love & Team Dream, 2shot Surabaya", "short_description": ""},
+    {"exclusive_id": 953, "category": "PHOTOCARD", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/ex9a4a-thumb-736b1c.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/ex9a4a-preview-792fcc.jpg", "code": "EX9A4A", "valid_date_from": "2026-06-15T05:00:00.000Z", "sort_order": None, "title": "Team Love & Team Dream, Meet and Greet Surabaya", "short_description": ""},
+    {"exclusive_id": 956, "category": "TWO_SHOT", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/excd2c-thumb-d289a4.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/excd2c-preview-385402.jpg", "code": "EXCD2C", "valid_date_from": "2026-06-15T05:00:00.000Z", "sort_order": None, "title": "Team Passion, 2shot Yogyakarta", "short_description": ""},
+    {"exclusive_id": 955, "category": "PHOTOCARD", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/excb75-thumb-fd9e9c.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/excb75-preview-03c4c8.jpg", "code": "EXCB75", "valid_date_from": "2026-06-15T05:00:00.000Z", "sort_order": None, "title": "Team Passion, Meet and Greet Yogyakarta", "short_description": ""},
+    {"exclusive_id": 947, "category": "DIGITAL_PHOTOBOOK", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/ex783d-thumb-edd92f.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/06/ex783d-preview-c1bec0.jpg", "code": "EX783D", "valid_date_from": "2026-06-09T13:00:00.000Z", "sort_order": None, "title": "JKT48 Personal Meet and Greet Festival: LOVE DREAM PASSION", "short_description": ""},
+    {"exclusive_id": 946, "category": "DIGITAL_PHOTOBOOK", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/05/ex3725-thumb-f9f5e7.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/05/ex3725-preview-d270de.jpg", "code": "EX3725", "valid_date_from": "2026-05-06T15:00:00.000Z", "sort_order": None, "title": "We Are Love, Dream Team, Passion On Fire!", "short_description": ""},
+    {"exclusive_id": 945, "category": "DIGITAL_PHOTOBOOK", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/ex8432-thumb-0bd15f.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/ex8432-preview-5bec27.jpg", "code": "EX8432", "valid_date_from": "2026-04-26T12:00:00.000Z", "sort_order": None, "title": "Love Dream Passion - Music Video Behind the Scenes (Without Bonus Video Call)", "short_description": ""},
+    {"exclusive_id": 944, "category": "DIGITAL_PHOTOBOOK", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/exbe10-thumb-37400f.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/exbe10-preview-98404e.jpg", "code": "EXBE10", "valid_date_from": "2026-04-10T15:00:00.000Z", "sort_order": None, "title": "Love Dream Passion - Music Video Behind the Scenes", "short_description": ""},
+    {"exclusive_id": 933, "category": "TWO_SHOT", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/03/ex579e-thumb-c637b9.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/03/ex579e-preview-e420c5.jpg", "code": "EX579E", "valid_date_from": "2026-04-01T11:00:00.000Z", "sort_order": None, "title": "Personal Meet and Greet Festival: LOVE DREAM PASSION, 2Shot - 23 May", "short_description": ""},
 ]
+KNOWN_EXCLUSIVE_CODES = [event["code"] for event in KNOWN_EXCLUSIVE_EVENTS]
 EMERGENCY_EXCLUSIVE_DETAILS = {
     "EX7F6C": {
         "exclusive_id": 962,
@@ -96,6 +101,23 @@ def _get_json(url, timeout):
     return response.json()
 
 
+def _event_summary_from_detail(detail):
+    return {
+        "exclusive_id": detail.get("exclusive_id"),
+        "category": detail.get("category"),
+        "thumbnail_image": detail.get("thumbnail_image"),
+        "preview_image": detail.get("preview_image"),
+        "code": detail.get("code"),
+        "valid_date_from": detail.get("valid_date_from"),
+        "sort_order": detail.get("sort_order"),
+        "title": detail.get("title"),
+        "short_description": detail.get("short_description", ""),
+        "default_price": detail.get("default_price", 0),
+        "valid_date_to": detail.get("valid_date_to"),
+        "sales_period": detail.get("sales_period", []),
+    }
+
+
 @st.cache_data(ttl=3600)
 def get_member_database():
     url = "https://jkt48.com/api/v1/members?lang=id"
@@ -128,7 +150,16 @@ def get_active_exclusive_events():
             return [ev for ev in event_list if ev.get("code")]
     except Exception:
         pass
-    return EMERGENCY_EXCLUSIVE_EVENTS.copy()
+
+    hydrated_events = []
+    for code in KNOWN_EXCLUSIVE_CODES:
+        detail = fetch_exclusive_detail(code)
+        if detail:
+            hydrated_events.append(_event_summary_from_detail(detail))
+    if hydrated_events:
+        return hydrated_events
+
+    return KNOWN_EXCLUSIVE_EVENTS.copy()
 
 
 @st.cache_data(ttl=15)
