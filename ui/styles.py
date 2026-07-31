@@ -66,7 +66,7 @@ body,
 }
 
 .ldp-subtitle {
-    margin: var(--space-md) 0 var(--space-lg);
+    margin: var(--space-md) 0 0;
     max-width: 65ch;
     color: var(--color-ink-2);
     font-size: var(--text-base);
@@ -165,7 +165,7 @@ body,
 /* Streamlit control rails */
 .st-key-event_filters {
     padding-block: var(--space-md);
-    border-block: 1px solid var(--color-rule);
+    border-bottom: 1px solid var(--color-rule);
 }
 
 .st-key-event_filters [data-testid="stVerticalBlockBorderWrapper"],

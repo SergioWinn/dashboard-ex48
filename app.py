@@ -29,10 +29,10 @@ st.markdown(
     <div class="ldp-header">
         <div class="ldp-wordmark">
             <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
+            <p class="ldp-subtitle">Choose an event and date, then scan available member slots.</p>
         </div>
         <a href="https://tako.id/Sportagame19Win" target="_blank" rel="noopener noreferrer" class="tako-btn">Support project ↗</a>
     </div>
-    <p class="ldp-subtitle">Find an event, isolate a date, and scan which member slots can still be purchased.</p>
     """,
     unsafe_allow_html=True
 )
