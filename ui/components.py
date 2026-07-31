@@ -9,6 +9,72 @@ from urllib.parse import quote
 import streamlit.components.v1 as components
 
 
+def install_motion_observer():
+    components.html(
+        """
+        <script>
+        (() => {
+            const parentWindow = window.parent;
+            const parentDocument = parentWindow.document;
+            const frame = window.frameElement;
+            if (frame) {
+                frame.style.display = "none";
+                frame.setAttribute("aria-hidden", "true");
+            }
+
+            parentWindow.__ex48MotionObserver?.disconnect();
+            const values = parentWindow.__ex48MotionValues ?? new Map();
+            parentWindow.__ex48MotionValues = values;
+            let scheduled = false;
+
+            function play(target) {
+                if (parentWindow.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+                target.getAnimations().forEach(animation => animation.cancel());
+                target.animate(
+                    [
+                        { opacity: 0.68, transform: "translateY(2px)" },
+                        { opacity: 1, transform: "translateY(0)" },
+                    ],
+                    { duration: 180, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+                );
+            }
+
+            function sync() {
+                scheduled = false;
+                parentDocument.querySelectorAll('[data-testid="stMetric"]').forEach(metric => {
+                    const label = metric.querySelector('[data-testid="stMetricLabel"]')?.textContent?.trim();
+                    const valueNode = metric.querySelector('[data-testid="stMetricValue"]');
+                    if (!label || !valueNode) return;
+                    const key = `metric:${label}`;
+                    const value = valueNode.textContent?.trim() ?? "";
+                    if (values.has(key) && values.get(key) !== value) play(valueNode);
+                    values.set(key, value);
+                });
+
+                const source = parentDocument.querySelector(".source-readout");
+                const sourceValue = source?.querySelector("strong")?.textContent?.trim();
+                if (source && sourceValue) {
+                    const key = "source-status";
+                    if (values.has(key) && values.get(key) !== sourceValue) play(source);
+                    values.set(key, sourceValue);
+                }
+            }
+
+            const observer = new MutationObserver(() => {
+                if (scheduled) return;
+                scheduled = true;
+                parentWindow.requestAnimationFrame(sync);
+            });
+            observer.observe(parentDocument.body, { childList: true, characterData: true, subtree: true });
+            parentWindow.__ex48MotionObserver = observer;
+            sync();
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+
 def _as_int(value):
     try:
         return int(value or 0)
@@ -421,6 +487,10 @@ def render_share_controls(storage_key):
             <style>
                 #share-selection-dialog { --dialog-bg: var(--color-graphite); --dialog-surface: var(--color-graphite-2); --dialog-rule: var(--color-graphite-2); --dialog-ink: var(--color-graphite-ink); --dialog-ink-muted: var(--color-graphite-muted); --dialog-accent: var(--color-accent); --dialog-accent-fill: var(--color-accent); --dialog-accent-strong: var(--color-accent-strong); --dialog-accent-ink: var(--color-accent-ink); --dialog-focus: var(--color-graphite-ink); --dialog-warning: var(--color-warning); --dialog-error: var(--color-danger); --dialog-backdrop: var(--color-overlay); --dialog-shadow: var(--color-shadow); --dialog-font: var(--font-body); position: fixed; inset: 0; width: min(680px, calc(100% - 24px)); height: fit-content; max-height: min(720px, calc(100dvh - 24px)); margin: auto; padding: 0; border: 0; border-radius: var(--radius-card); background: var(--dialog-bg); color: var(--dialog-ink); font-family: var(--dialog-font); box-shadow: 0 1px 2px var(--dialog-shadow); }
                 #share-selection-dialog::backdrop { background: var(--dialog-backdrop); }
+                #share-selection-dialog[open] { animation: share-dialog-in var(--dur-short) var(--ease-out); }
+                #share-selection-dialog[open]::backdrop { animation: share-backdrop-in var(--dur-short) var(--ease-out); }
+                @keyframes share-dialog-in { from { opacity: 0; transform: translateY(4px); } }
+                @keyframes share-backdrop-in { from { opacity: 0; } }
                 .share-picker-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: var(--space-sm); border-bottom: 1px solid var(--dialog-rule); }
                 .share-picker-head h2 { margin: 0; font-size: 18px; }
                 .share-picker-head p { display: none; margin: var(--space-2xs) 0 0; color: var(--dialog-ink-muted); font-size: 12px; }
@@ -452,6 +522,9 @@ def render_share_controls(storage_key):
                     .share-picker-head p { display: block; }
                     .share-picker-body { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); padding: var(--space-md) var(--space-lg); max-height: calc(100dvh - 210px); }
                     .share-picker-foot { padding: var(--space-sm) var(--space-lg) var(--space-md); }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    #share-selection-dialog[open], #share-selection-dialog[open]::backdrop { animation: none; }
                 }
             </style>
             <div class="share-picker-head">

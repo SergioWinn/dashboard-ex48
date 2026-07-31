@@ -85,7 +85,7 @@ body,
     font-weight: 600;
     text-decoration: none !important;
     white-space: nowrap;
-    transition: transform var(--dur-micro) var(--ease-out);
+    transition: opacity var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out);
 }
 
 /* Event index readout */
@@ -336,6 +336,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 
 .ldp-card.purchase-card {
     color: inherit !important;
+    transition: transform var(--dur-micro) var(--ease-out);
 }
 
 .purchase-card .c-jalur,
@@ -484,7 +485,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     inset: 0;
     z-index: 0;
     transform-origin: left center;
-    transition: transform 400ms var(--ease-out);
+    transition: transform var(--dur-short) var(--ease-out);
 }
 
 .ldp-card.avail .c-prog-fill { background: var(--color-success); }
@@ -622,8 +623,8 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 @media (hover: hover) and (pointer: fine) {
     div[data-baseweb="select"] > div:hover,
     [data-testid="stTextInput"] input:hover { background: var(--color-paper-2) !important; }
-    .ldp-card.purchase-card:hover { border-color: var(--color-accent); }
-    .tako-btn:hover { background: var(--color-paper-2); }
+    .ldp-card.purchase-card:hover { transform: translateY(-1px); }
+    .tako-btn:hover { opacity: 0.78; }
     .index-footer a:hover { text-decoration: underline; }
 }
 
