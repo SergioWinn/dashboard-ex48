@@ -401,7 +401,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
     st.markdown(master_html_buffer, unsafe_allow_html=True)
     
 def render_share_controls(storage_key):
-    controls_html = """
+    controls_html = r"""
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onerror="const fallback=document.createElement('script');fallback.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';document.head.appendChild(fallback);"></script>
     <style>
         :root { --share-accent: oklch(56% 0.2 256); --share-accent-strong: oklch(48% 0.2 256); --share-ink: oklch(98.5% 0.004 250); --share-focus: oklch(18% 0.02 258); --share-shadow: oklch(24% 0.02 258 / 0.18); --share-space-xs: 8px; --ease-out: cubic-bezier(.16,1,.3,1); }
@@ -629,10 +629,94 @@ def render_share_controls(storage_key):
             if (!dialog.open) dialog.showModal();
         }
 
+        function oklchToLegacyRgb(value) {
+            const match = value.trim().match(/^oklch\(\s*([\d.]+)(%)?\s+([\d.]+)\s+([\d.]+)(?:deg)?(?:\s*\/\s*([\d.]+)(%)?)?\s*\)$/i);
+            if (!match) return value;
+
+            const lightness = Number(match[1]) / (match[2] ? 100 : 1);
+            const chroma = Number(match[3]);
+            const hue = Number(match[4]) * Math.PI / 180;
+            const alpha = match[5] ? Number(match[5]) / (match[6] ? 100 : 1) : 1;
+            const a = chroma * Math.cos(hue);
+            const b = chroma * Math.sin(hue);
+            const l = Math.pow(lightness + 0.3963377774 * a + 0.2158037573 * b, 3);
+            const m = Math.pow(lightness - 0.1055613458 * a - 0.0638541728 * b, 3);
+            const s = Math.pow(lightness - 0.0894841775 * a - 1.291485548 * b, 3);
+            const linear = [
+                4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+                -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+                -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+            ];
+            const channels = linear.map(channel => {
+                const srgb = channel <= 0.0031308
+                    ? 12.92 * channel
+                    : 1.055 * Math.pow(channel, 1 / 2.4) - 0.055;
+                return Math.round(Math.max(0, Math.min(1, srgb)) * 255);
+            });
+            return alpha < 1
+                ? `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${Math.max(0, Math.min(1, alpha))})`
+                : `rgb(${channels[0]}, ${channels[1]}, ${channels[2]})`;
+        }
+
+        function colorSrgbToLegacyRgb(value) {
+            const match = value.trim().match(/^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\s*\)$/i);
+            if (!match) return value;
+            const channels = [match[1], match[2], match[3]].map(channel => (
+                Math.round(Math.max(0, Math.min(1, Number(channel))) * 255)
+            ));
+            const alpha = match[4] === undefined ? 1 : Math.max(0, Math.min(1, Number(match[4])));
+            return alpha < 1
+                ? `rgba(${channels[0]}, ${channels[1]}, ${channels[2]}, ${alpha})`
+                : `rgb(${channels[0]}, ${channels[1]}, ${channels[2]})`;
+        }
+
+        function toLegacyColor(value) {
+            const trimmed = String(value || "").trim();
+            if (trimmed.startsWith("oklch(")) return oklchToLegacyRgb(trimmed);
+            if (trimmed.startsWith("color(srgb")) return colorSrgbToLegacyRgb(trimmed);
+            return trimmed;
+        }
+
+        function normalizeCaptureColors(target, source, background) {
+            const colorTokens = [
+                "--color-paper", "--color-paper-2", "--color-paper-3", "--color-ink",
+                "--color-ink-2", "--color-muted", "--color-rule", "--color-rule-strong",
+                "--color-accent", "--color-accent-strong", "--color-accent-soft",
+                "--color-accent-ink", "--color-focus", "--color-success",
+                "--color-success-soft", "--color-success-ink", "--color-status-success-ink",
+                "--color-warning", "--color-warning-soft", "--color-warning-ink",
+                "--color-status-warning-ink", "--color-danger", "--color-danger-soft",
+                "--color-danger-ink", "--color-closed", "--color-graphite",
+                "--color-graphite-2", "--color-graphite-ink", "--color-graphite-muted",
+                "--color-overlay", "--color-shadow", "--color-surface",
+                "--color-surface-raised", "--color-on-status", "--color-photo",
+                "--color-text-shadow",
+            ];
+            const probe = window.parent.document.createElement("span");
+            const legacyTokens = {};
+            probe.style.cssText = "position:fixed;left:-20000px;top:0;pointer-events:none";
+            source.appendChild(probe);
+            colorTokens.forEach(token => {
+                probe.style.color = `var(${token})`;
+                const resolved = window.parent.getComputedStyle(probe).color;
+                const legacy = toLegacyColor(resolved);
+                if (legacy) {
+                    target.style.setProperty(token, legacy);
+                    legacyTokens[token] = legacy;
+                }
+            });
+            probe.remove();
+
+            const legacyBackground = toLegacyColor(background);
+            target.style.backgroundColor = legacyBackground;
+            target.style.color = toLegacyColor(window.parent.getComputedStyle(source).color);
+            return { background: legacyBackground, tokens: legacyTokens };
+        }
+
         function getCaptureBackground(source) {
             let node = source;
             while (node) {
-                const background = window.getComputedStyle(node).backgroundColor;
+                const background = window.parent.getComputedStyle(node).backgroundColor;
                 if (background && background !== "transparent" && !background.endsWith(", 0)")) return background;
                 node = node.parentElement;
             }
@@ -682,9 +766,8 @@ def render_share_controls(storage_key):
             const banner = target.querySelector("#share-banner");
             if (banner) banner.style.display = "flex";
 
-            const background = getCaptureBackground(source);
-            target.style.backgroundColor = background;
-            target.style.color = window.getComputedStyle(source).color;
+            const captureTheme = normalizeCaptureColors(target, source, getCaptureBackground(source));
+            const background = captureTheme.background;
             const wrapper = window.parent.document.createElement("div");
             wrapper.style.position = "fixed";
             wrapper.style.left = "-12000px";
@@ -694,7 +777,7 @@ def render_share_controls(storage_key):
             wrapper.appendChild(target);
             window.parent.document.body.appendChild(wrapper);
             activeCaptureWrapper = wrapper;
-            return { target, wrapper, background };
+            return { target, wrapper, background, colorTokens: captureTheme.tokens };
         }
 
         function setCopyState(button, state, detail = "") {
@@ -783,12 +866,24 @@ def render_share_controls(storage_key):
                 allowTaint: false,
                 backgroundColor: state.background,
                 imageTimeout: 8000,
+                ignoreElements: element => element.id === "share-selection-dialog" || element.tagName === "IFRAME",
                 logging: false,
                 scale,
                 scrollX: 0,
                 scrollY: 0,
                 windowWidth: width,
                 windowHeight: height,
+                onclone: clonedDocument => {
+                    const clonedTarget = clonedDocument.getElementById("share-capture-target");
+                    [clonedDocument.documentElement, clonedDocument.body, clonedTarget].forEach(element => {
+                        if (!element) return;
+                        Object.entries(state.colorTokens).forEach(([token, value]) => {
+                            element.style.setProperty(token, value);
+                        });
+                    });
+                    clonedDocument.documentElement.style.backgroundColor = state.background;
+                    clonedDocument.body.style.backgroundColor = state.background;
+                },
             });
             return canvasToBlob(canvas);
         }
