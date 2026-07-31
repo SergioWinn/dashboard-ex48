@@ -207,7 +207,7 @@ def get_active_exclusive_events():
 def fetch_exclusive_detail(code):
     url = f"https://jkt48.com/api/v1/exclusives/{code}?lang=id"
     cache_file = os.path.join(RUNTIME_CACHE_DIR, f"exclusive_{code}.json")
-    bundled_cache_file = f"cache_exclusive_{code}.json"
+    bundled_cache_file = os.path.join("data", "fallback", f"{code}.json")
     now_wib = datetime.utcnow() + timedelta(hours=7)
     waktu_sekarang = now_wib.strftime('%d/%m/%Y %H:%M:%S WIB')
 

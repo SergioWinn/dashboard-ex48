@@ -54,7 +54,7 @@ class GetActiveExclusiveEventsTest(unittest.TestCase):
         project_root = Path(__file__).parent.parent
 
         for event in KNOWN_EXCLUSIVE_EVENTS:
-            cache_file = project_root / f"cache_exclusive_{event['code']}.json"
+            cache_file = project_root / "data" / "fallback" / f"{event['code']}.json"
             with self.subTest(code=event["code"]):
                 self.assertTrue(cache_file.exists())
                 with cache_file.open(encoding="utf-8") as file:
