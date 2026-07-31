@@ -589,6 +589,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
 .capture-mode .c-identity {
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
+    justify-items: center;
     gap: var(--space-xs);
 }
 
@@ -597,6 +598,7 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] label {
     font-size: 0.8rem;
     line-height: 1.2;
     overflow-wrap: normal;
+    text-align: center;
     word-break: normal;
 }
 
