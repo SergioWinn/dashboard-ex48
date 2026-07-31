@@ -1,7 +1,6 @@
 # app.py
 
 import streamlit as st
-import concurrent.futures
 from datetime import datetime, timedelta
 
 from core.api import get_member_database, get_active_exclusive_codes, fetch_exclusive_detail
@@ -102,12 +101,10 @@ if not active_codes:
 
 active_events = []
 with st.spinner("Fetching latest JKT48 Exclusive data..."):
-    max_workers = min(4, max(1, len(active_codes)))
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        results = executor.map(fetch_exclusive_detail, active_codes)
-        for data in results:
-            if data and data.get('status') is not False:
-                active_events.append(data)
+    for code in active_codes:
+        data = fetch_exclusive_detail(code)
+        if data and data.get('status') is not False:
+            active_events.append(data)
 
 active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
 
@@ -176,19 +173,15 @@ if available_categories:
     sales_periods = selected_event.get('sales_period', [])
     for sp in sales_periods:
         if sp.get('label') == 'General':
-            raw_close_date = sp.get('end_date') # Ambil "2026-06-27T09:00:00"
+            raw_close_date = sp.get('end_date')
             break
 
-    # Jika di sales_period tidak ada, coba fallback ke valid_date_to
     if not raw_close_date and selected_event.get('valid_date_to'):
-        # Kita potong mili-detiknya agar formatnya sama-sama "%Y-%m-%dT%H:%M:%S"
         raw_close_date = selected_event.get('valid_date_to').split('.')[0]
-    # -------------------------------------------------------------------------
 
     st.markdown(f"### {selected_event.get('title', 'Event')}")
     st.caption(f"**Category:** {selected_event.get('category', '-').replace('_', ' ')} | **Price:** IDR {selected_event.get('default_price', 0):,}")
 
-    # Kirim raw_close_date ke dalam fragment
     live_dashboard_fragment(event_code, global_query, nickname_map, photo_map, available_only, raw_close_date)
 
     try:

@@ -13,6 +13,14 @@ HEADERS = {
     "Accept": "application/json, text/plain, */*"
 }
 
+
+def _set_wr_status(code, is_live, time_label):
+    try:
+        st.session_state[f"wr_status_{code}"] = {"is_live": is_live, "time": time_label}
+    except Exception:
+        pass
+
+
 @st.cache_data(ttl=3600)
 def get_member_database():
     url = "https://jkt48.com/api/v1/members?lang=id"
@@ -36,6 +44,7 @@ def get_member_database():
         pass
     return nickname_map, photo_map
 
+
 @st.cache_data(ttl=300)
 def get_active_exclusive_codes():
     url = "https://jkt48.com/api/v1/exclusives?lang=id"
@@ -50,6 +59,7 @@ def get_active_exclusive_codes():
     except:
         pass
     return []
+
 
 @st.cache_data(ttl=4)
 def fetch_exclusive_detail(code):
@@ -73,7 +83,7 @@ def fetch_exclusive_detail(code):
                     with open(cache_file, "w") as f:
                         json.dump(cache_payload, f)
 
-                    st.session_state[f"wr_status_{code}"] = {"is_live": True, "time": waktu_sekarang}
+                    _set_wr_status(code, True, waktu_sekarang)
                     return data
         except Exception:
             time.sleep(0.4)
@@ -83,13 +93,10 @@ def fetch_exclusive_detail(code):
             with open(cache_file, "r") as f:
                 cache_payload = json.load(f)
 
-            st.session_state[f"wr_status_{code}"] = {
-                "is_live": False,
-                "time": cache_payload.get("last_updated", "Unknown")
-            }
+            _set_wr_status(code, False, cache_payload.get("last_updated", "Unknown"))
             return cache_payload.get("data")
         except:
             pass
 
-    st.session_state[f"wr_status_{code}"] = {"is_live": False, "time": "No Cache Available"}
+    _set_wr_status(code, False, "No Cache Available")
     return None
