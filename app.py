@@ -3,7 +3,7 @@
 import streamlit as st
 from datetime import datetime, timedelta
 
-from core.api import get_member_database, get_active_exclusive_codes, fetch_exclusive_detail
+from core.api import get_member_database, get_active_exclusive_events, fetch_exclusive_detail
 from ui.styles import GLOBAL_CSS
 from ui.components import render_event_cards, render_share_controls
 
@@ -31,43 +31,41 @@ st.markdown(
 
 # --- 3. STREAMLIT FRAGMENT: ISOLATED AUTO-REFRESH ---
 @st.fragment(run_every=5)
-def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, available_only, raw_close_date):
-    fresh_event_data = fetch_exclusive_detail(event_code)
+def live_dashboard_fragment(selected_event, search_query, nickname_map, photo_map, available_only, raw_close_date):
+    event_code = selected_event.get('code')
+    fresh_event_data = fetch_exclusive_detail(event_code) if event_code else None
+    event_data = fresh_event_data or selected_event
 
-    # --- 1. TENTUKAN STATUS EVENT CLOSED ---
     is_event_closed = False
     if raw_close_date:
         try:
             dt_close_wib = datetime.strptime(raw_close_date, "%Y-%m-%dT%H:%M:%S")
             now_wib = datetime.utcnow() + timedelta(hours=7)
-
             if now_wib >= dt_close_wib:
-                is_event_closed = True # Set jadi True jika sudah lewat jam tutup
+                is_event_closed = True
         except:
             pass
-    # ---------------------------------------
 
-    # --- CEK STATUS CLOUDFLARE WAITING ROOM ---
     wr_info = st.session_state.get(f"wr_status_{event_code}", {"is_live": True, "time": ""})
 
-    if not wr_info.get("is_live"):
+    if fresh_event_data:
+        current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S')
+        st.caption(f"Live data · Updated {current_time_wib} WIB")
+    elif not wr_info.get("is_live"):
         st.warning(
             f"**JKT48 Server is currently in Cloudflare Waiting Room / Down.** "
             f"Showing last known good data backup (Last Updated: {wr_info.get('time')})."
         )
     else:
-        current_time_wib = (datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S')
-        st.caption(f"Live data · Updated {current_time_wib} WIB")
-    # ------------------------------------------
+        st.warning("Event details are temporarily unavailable. Showing event list data only.")
 
     if not fresh_event_data:
-        st.warning("Waiting for data sync update...")
         return
 
     total_sold = 0
     sisa_kuota = 0
 
-    for sesi in fresh_event_data.get('session', []):
+    for sesi in event_data.get('session', []):
         for m in sesi.get('session_detail', []):
             try:
                 sold = int(m.get('tickets_sold') or 0)
@@ -89,24 +87,11 @@ def live_dashboard_fragment(event_code, search_query, nickname_map, photo_map, a
         with col_m3:
             st.metric(label="Sold Rate", value=f"{sold_rate:.1f}%")
 
-    # --- 3. KIRIM is_event_closed KE KOMPONEN CARD ---
-    render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, available_only, is_event_closed)
+    render_event_cards(event_data, search_query, nickname_map, photo_map, available_only, is_event_closed)
 
 # --- 4. MAIN LAYOUT & DISCOVERY ---
 nickname_map, photo_map = get_member_database()
-
-active_codes = get_active_exclusive_codes()
-if not active_codes:
-    active_codes = ['EX783D', 'EX9A4A', 'EXCD2C', 'EXCB75']
-
-active_events = []
-with st.spinner("Fetching latest JKT48 Exclusive data..."):
-    for code in active_codes:
-        data = fetch_exclusive_detail(code)
-        if data and data.get('status') is not False:
-            active_events.append(data)
-
-active_events.sort(key=lambda x: x.get('valid_date_from', ''), reverse=True)
+active_events = get_active_exclusive_events()
 
 categories_dict = {}
 for ev in active_events:
@@ -157,7 +142,6 @@ if available_categories:
             events_in_cat = available_categories[selected_cat]
             event_labels = [e["label"] for e in events_in_cat]
             selected_event_label = st.selectbox("JKT48 Event", event_labels)
-
             selected_event = next(e["data"] for e in events_in_cat if e["label"] == selected_event_label)
 
         with col_search:
@@ -166,9 +150,6 @@ if available_categories:
         with col_toggle:
             available_only = st.toggle("Available only", value=False)
 
-    event_code = selected_event.get('code')
-
-    # --- LOGIKA BARU: Cari jam tutup dari array sales_period (Jalur General) ---
     raw_close_date = None
     sales_periods = selected_event.get('sales_period', [])
     for sp in sales_periods:
@@ -182,7 +163,7 @@ if available_categories:
     st.markdown(f"### {selected_event.get('title', 'Event')}")
     st.caption(f"**Category:** {selected_event.get('category', '-').replace('_', ' ')} | **Price:** IDR {selected_event.get('default_price', 0):,}")
 
-    live_dashboard_fragment(event_code, global_query, nickname_map, photo_map, available_only, raw_close_date)
+    live_dashboard_fragment(selected_event, global_query, nickname_map, photo_map, available_only, raw_close_date)
 
     try:
         admin_keys = st.secrets.get("ADMIN_KEYS", [])
@@ -192,7 +173,6 @@ if available_categories:
         admin_keys = [admin_keys]
     access_key = st.query_params.get("akses", "")
     if access_key and access_key in admin_keys:
-        render_share_controls(f"share_selection_{event_code}")
-
+        render_share_controls(f"share_selection_{selected_event.get('code', 'unknown')}")
 else:
     st.error("No active Exclusive events found or failed to fetch data.")

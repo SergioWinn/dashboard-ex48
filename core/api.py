@@ -46,7 +46,7 @@ def get_member_database():
 
 
 @st.cache_data(ttl=300)
-def get_active_exclusive_codes():
+def get_active_exclusive_events():
     url = "https://jkt48.com/api/v1/exclusives?lang=id"
     try:
         response = requests.get(url, headers=HEADERS, timeout=10)
@@ -55,10 +55,15 @@ def get_active_exclusive_codes():
             if res_json.get("status") is True and "data" in res_json:
                 data_content = res_json["data"]
                 event_list = data_content if isinstance(data_content, list) else data_content.get("data", [])
-                return [ev.get("code") for ev in event_list if ev.get("code")]
+                return [ev for ev in event_list if ev.get("code")]
     except:
         pass
     return []
+
+
+@st.cache_data(ttl=300)
+def get_active_exclusive_codes():
+    return [ev.get("code") for ev in get_active_exclusive_events() if ev.get("code")]
 
 
 @st.cache_data(ttl=4)
