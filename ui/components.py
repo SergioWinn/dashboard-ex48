@@ -315,7 +315,7 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
                 cls, btn_text = "sold", "SOLD&nbsp;OUT"
                 sold_percentage = 100
             elif current_quota < warn_limit:
-                cls, btn_text = "warn", f"LOW&nbsp;·&nbsp;{current_quota}&nbsp;LEFT"
+                cls, btn_text = "warn", f"{current_quota}&nbsp;LEFT"
             else:
                 cls, btn_text = "avail", f"{current_quota}&nbsp;LEFT"
 
