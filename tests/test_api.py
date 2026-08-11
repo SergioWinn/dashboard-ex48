@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -10,6 +11,7 @@ from core.api import (
     clear_exclusive_detail_cache,
     fetch_exclusive_detail,
     get_active_exclusive_events,
+    _http_get,
 )
 
 
@@ -17,6 +19,20 @@ class GetActiveExclusiveEventsTest(unittest.TestCase):
     def tearDown(self):
         get_active_exclusive_events.clear()
         clear_exclusive_detail_cache()
+
+    @patch("core.api.USING_BROWSER_CLIENT", False)
+    @patch("core.api.browser_requests.get")
+    def test_admin_waiting_room_cookie_is_sent(self, get):
+        with (
+            patch("core.api.st.session_state", {"jkt48_cookie": "__cfwaitingroom=admin"}),
+            patch.dict(os.environ, {"JKT48_COOKIE": "__cfwaitingroom=secret"}),
+        ):
+            _http_get("https://jkt48.com/api/v1/members", 15)
+
+        self.assertEqual(
+            get.call_args.kwargs["headers"]["Cookie"],
+            "__cfwaitingroom=admin",
+        )
 
     @patch("core.api._write_cache")
     @patch("core.api._get_json")

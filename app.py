@@ -5,7 +5,12 @@ import time
 from datetime import datetime, timedelta, timezone
 from html import escape
 
-from core.api import get_active_exclusive_events, get_member_database, fetch_exclusive_detail
+from core.api import (
+    clear_exclusive_detail_cache,
+    fetch_exclusive_detail,
+    get_active_exclusive_events,
+    get_member_database,
+)
 from core.refresh import get_detail_refresh_interval, get_sales_window
 from ui.styles import GLOBAL_CSS
 from ui.components import render_event_cards, render_share_controls
@@ -42,6 +47,38 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+try:
+    admin_keys = st.secrets.get("ADMIN_KEYS", [])
+except Exception:
+    admin_keys = []
+if isinstance(admin_keys, str):
+    admin_keys = [admin_keys]
+access_key = st.query_params.get("akses", "")
+is_admin = bool(access_key and access_key in admin_keys)
+
+if is_admin:
+    with st.expander("Admin · JKT48 waiting-room cookie"):
+        with st.form("jkt48_cookie_form"):
+            cookie = st.text_input(
+                "Cookie header",
+                value=st.session_state.get("jkt48_cookie", ""),
+                type="password",
+                help="Tempel seluruh nilai Cookie. Kosongkan lalu Apply untuk menghapusnya.",
+            )
+            if st.form_submit_button("Apply cookie"):
+                cookie = cookie.strip()
+                if "\r" in cookie or "\n" in cookie:
+                    st.error("Cookie tidak valid.")
+                else:
+                    if cookie:
+                        st.session_state["jkt48_cookie"] = cookie
+                    else:
+                        st.session_state.pop("jkt48_cookie", None)
+                    get_member_database.clear()
+                    get_active_exclusive_events.clear()
+                    clear_exclusive_detail_cache()
+                    st.rerun()
 
 
 @st.fragment(run_every=5)
@@ -240,14 +277,7 @@ if available_categories:
         tuple(event.get("code") for event in active_events if event.get("code")),
     )
 
-    try:
-        admin_keys = st.secrets.get("ADMIN_KEYS", [])
-    except Exception:
-        admin_keys = []
-    if isinstance(admin_keys, str):
-        admin_keys = [admin_keys]
-    access_key = st.query_params.get("akses", "")
-    if access_key and access_key in admin_keys:
+    if is_admin:
         render_share_controls(f"share_selection_{selected_event.get('code', 'unknown')}")
 else:
     st.error("No active Exclusive events found or failed to fetch data.")

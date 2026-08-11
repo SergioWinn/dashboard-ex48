@@ -87,7 +87,14 @@ def _set_wr_status(code, is_live, time_label, reason=""):
 
 
 def _http_get(url, timeout):
-    kwargs = {"timeout": timeout, "headers": FALLBACK_HEADERS}
+    headers = FALLBACK_HEADERS.copy()
+    try:
+        cookie = st.session_state.get("jkt48_cookie", "")
+    except Exception:
+        cookie = ""
+    if cookie := cookie or os.getenv("JKT48_COOKIE"):
+        headers["Cookie"] = cookie
+    kwargs = {"timeout": timeout, "headers": headers}
     if USING_BROWSER_CLIENT:
         responses = []
         last_error = None
