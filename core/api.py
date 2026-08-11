@@ -22,6 +22,9 @@ FALLBACK_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
 }
 RUNTIME_CACHE_DIR = ".runtime_cache"
+_runtime_jkt48_cookie = None
+_waiting_room_detected = False
+WAITING_ROOM_COOKIE_NAME = "__cfwaitingroom_ZTQYgBEnKachvw02U27HjtX2nXWqUNZSxvbKT2M0P6"
 KNOWN_EXCLUSIVE_EVENTS = [
     {"exclusive_id": 936, "category": "PHOTOCARD", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/ex7b6d-thumb-d71768.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/04/ex7b6d-preview-8a69c1.jpg", "code": "EXE588", "valid_date_from": "2026-04-02T11:00:00.000Z", "sort_order": 1, "title": "Personal Meet and Greet Festival: LOVE DREAM PASSION, Meet & Greet - 23 May", "short_description": ""},
     {"exclusive_id": 962, "category": "DIGITAL_PHOTOBOOK", "thumbnail_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/07/ex7f6c-thumb-a2122e.jpg", "preview_image": "https://jkt48.com/api/v1/storages/media/exclusive/2026/07/ex7f6c-preview-872f71.jpg", "code": "EX7F6C", "valid_date_from": "2026-07-16T13:00:00.000Z", "sort_order": None, "title": "JKT48 Request Hour 2026 Setlist Best 40", "short_description": ""},
@@ -75,6 +78,34 @@ class LiveApiUnavailable(RuntimeError):
     pass
 
 
+def get_jkt48_cookie():
+    return os.getenv("JKT48_COOKIE", "") if _runtime_jkt48_cookie is None else _runtime_jkt48_cookie
+
+
+def set_jkt48_cookie(cookie):
+    # ponytail: process-local state; use a shared secret store if the app gains multiple replicas.
+    global _runtime_jkt48_cookie
+    _runtime_jkt48_cookie = cookie
+
+
+def is_waiting_room_detected():
+    return _waiting_room_detected
+
+
+def build_jkt48_cookie(clearance, waiting_room):
+    clearance = clearance.strip().removeprefix("cf_clearance=")
+    waiting_room = waiting_room.strip()
+    if waiting_room.startswith("__cfwaitingroom"):
+        waiting_room_name, separator, waiting_room = waiting_room.partition("=")
+    else:
+        waiting_room_name, separator = WAITING_ROOM_COOKIE_NAME, "="
+    if not clearance or not waiting_room or not separator:
+        raise ValueError("Kedua value cookie wajib diisi.")
+    if any(character in f"{clearance}{waiting_room_name}{waiting_room}" for character in "\r\n;"):
+        raise ValueError("Tempel value cookie tanpa titik koma atau baris baru.")
+    return f"cf_clearance={clearance}; {waiting_room_name}={waiting_room}"
+
+
 def _set_wr_status(code, is_live, time_label, reason=""):
     try:
         st.session_state[f"wr_status_{code}"] = {
@@ -86,14 +117,7 @@ def _set_wr_status(code, is_live, time_label, reason=""):
         pass
 
 
-def _http_get(url, timeout):
-    headers = FALLBACK_HEADERS.copy()
-    try:
-        cookie = st.session_state.get("jkt48_cookie", "")
-    except Exception:
-        cookie = ""
-    if cookie := cookie or os.getenv("JKT48_COOKIE"):
-        headers["Cookie"] = cookie
+def _send_http_get(url, timeout, headers):
     kwargs = {"timeout": timeout, "headers": headers}
     if USING_BROWSER_CLIENT:
         responses = []
@@ -114,6 +138,23 @@ def _http_get(url, timeout):
     return browser_requests.get(url, **kwargs)
 
 
+def _is_waiting_room_response(response):
+    content_type = response.headers.get("content-type", "").lower()
+    if "json" in content_type:
+        return False
+    body_start = response.text[:1000].lower()
+    return "waiting room" in body_start or "__cfwaitingroom" in body_start
+
+
+def _http_get(url, timeout):
+    global _waiting_room_detected
+    response = _send_http_get(url, timeout, FALLBACK_HEADERS)
+    _waiting_room_detected = _is_waiting_room_response(response)
+    if _waiting_room_detected and (cookie := get_jkt48_cookie()):
+        response = _send_http_get(url, timeout, {**FALLBACK_HEADERS, "Cookie": cookie})
+    return response
+
+
 def _get_json(url, timeout):
     try:
         response = _http_get(url, timeout)
@@ -126,7 +167,7 @@ def _get_json(url, timeout):
         raise LiveApiUnavailable(reason)
     if "json" not in content_type:
         body_start = response.text[:1000].lower()
-        if "waiting room" in body_start or "__cfwaitingroom" in body_start:
+        if _is_waiting_room_response(response):
             reason = "Cloudflare Waiting Room"
         elif "just a moment" in body_start or "cf-chl" in body_start:
             reason = "Cloudflare challenge"

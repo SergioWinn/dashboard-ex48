@@ -13,3 +13,6 @@ __pycache__/
 .streamlit/
 .runtime_cache/
 .wrangler/
+
+# Hallmark
+.hallmark/

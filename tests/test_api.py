@@ -3,14 +3,18 @@ import os
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from core.api import (
     KNOWN_EXCLUSIVE_EVENTS,
     LiveApiUnavailable,
+    WAITING_ROOM_COOKIE_NAME,
+    build_jkt48_cookie,
     clear_exclusive_detail_cache,
     fetch_exclusive_detail,
     get_active_exclusive_events,
+    is_waiting_room_detected,
+    set_jkt48_cookie,
     _http_get,
 )
 
@@ -19,20 +23,38 @@ class GetActiveExclusiveEventsTest(unittest.TestCase):
     def tearDown(self):
         get_active_exclusive_events.clear()
         clear_exclusive_detail_cache()
+        set_jkt48_cookie("")
 
     @patch("core.api.USING_BROWSER_CLIENT", False)
     @patch("core.api.browser_requests.get")
-    def test_admin_waiting_room_cookie_is_sent(self, get):
-        with (
-            patch("core.api.st.session_state", {"jkt48_cookie": "__cfwaitingroom=admin"}),
-            patch.dict(os.environ, {"JKT48_COOKIE": "__cfwaitingroom=secret"}),
-        ):
+    def test_admin_cookie_is_only_sent_after_waiting_room(self, get):
+        waiting_room = Mock(
+            status_code=200,
+            headers={"content-type": "text/html"},
+            text="Cloudflare Waiting Room",
+        )
+        live_api = Mock(status_code=200, headers={"content-type": "application/json"})
+        get.side_effect = [waiting_room, live_api]
+
+        with patch.dict(os.environ, {"JKT48_COOKIE": "__cfwaitingroom=secret"}):
+            set_jkt48_cookie("__cfwaitingroom=admin")
             _http_get("https://jkt48.com/api/v1/members", 15)
 
-        self.assertEqual(
-            get.call_args.kwargs["headers"]["Cookie"],
-            "__cfwaitingroom=admin",
-        )
+        self.assertNotIn("Cookie", get.call_args_list[0].kwargs["headers"])
+        self.assertEqual(get.call_args_list[1].kwargs["headers"]["Cookie"], "__cfwaitingroom=admin")
+        self.assertTrue(is_waiting_room_detected())
+
+        get.reset_mock(side_effect=True)
+        get.return_value = live_api
+        _http_get("https://jkt48.com/api/v1/members", 15)
+
+        self.assertNotIn("Cookie", get.call_args.kwargs["headers"])
+        self.assertFalse(is_waiting_room_detected())
+
+    def test_cookie_values_are_combined_for_the_request_header(self):
+        cookie = build_jkt48_cookie("cf_clearance=clearance", "waiting")
+
+        self.assertEqual(cookie, f"cf_clearance=clearance; {WAITING_ROOM_COOKIE_NAME}=waiting")
 
     @patch("core.api._write_cache")
     @patch("core.api._get_json")

@@ -6,10 +6,14 @@ from datetime import datetime, timedelta, timezone
 from html import escape
 
 from core.api import (
+    build_jkt48_cookie,
     clear_exclusive_detail_cache,
     fetch_exclusive_detail,
     get_active_exclusive_events,
+    get_jkt48_cookie,
     get_member_database,
+    is_waiting_room_detected,
+    set_jkt48_cookie,
 )
 from core.refresh import get_detail_refresh_interval, get_sales_window
 from ui.styles import GLOBAL_CSS
@@ -57,28 +61,52 @@ if isinstance(admin_keys, str):
 access_key = st.query_params.get("akses", "")
 is_admin = bool(access_key and access_key in admin_keys)
 
-if is_admin:
-    with st.expander("Admin · JKT48 waiting-room cookie"):
-        with st.form("jkt48_cookie_form"):
-            cookie = st.text_input(
-                "Cookie header",
-                value=st.session_state.get("jkt48_cookie", ""),
-                type="password",
-                help="Tempel seluruh nilai Cookie. Kosongkan lalu Apply untuk menghapusnya.",
+
+# Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V4
+# component: dialog · genre: modern-minimal · theme: Cobalt · contrast: native Streamlit
+@st.dialog("Mitigate Waiting Room", width="medium", icon=":material/key:")
+def show_jkt48_cookie_dialog():
+    cookie_active = bool(get_jkt48_cookie())
+    if cookie_active:
+        st.success("Mitigation cookie aktif untuk retry Waiting Room.")
+    else:
+        st.warning("Waiting Room terdeteksi. Masukkan dua value cookie dari browser yang sudah lolos.")
+
+    st.caption("Salin kolom Value dari browser. Nama cookie akan ditambahkan otomatis.")
+    with st.form("jkt48_cookie_form"):
+        clearance = st.text_input(
+            "cf_clearance value",
+            type="password",
+            placeholder="rCdyhpzrkj0S…",
+            help="Boleh berupa value saja atau cf_clearance=value.",
+        )
+        waiting_room = st.text_input(
+            "Waiting Room value",
+            type="password",
+            placeholder="ChhYV01zb0ZG…",
+            help="Boleh berupa value saja atau __cfwaitingroom_…=value.",
+        )
+        apply_col, remove_col = st.columns(2)
+        with apply_col:
+            apply_cookie = st.form_submit_button("Apply cookie", type="primary", use_container_width=True)
+        with remove_col:
+            remove_cookie = st.form_submit_button(
+                "Remove cookie",
+                disabled=not cookie_active,
+                use_container_width=True,
             )
-            if st.form_submit_button("Apply cookie"):
-                cookie = cookie.strip()
-                if "\r" in cookie or "\n" in cookie:
-                    st.error("Cookie tidak valid.")
-                else:
-                    if cookie:
-                        st.session_state["jkt48_cookie"] = cookie
-                    else:
-                        st.session_state.pop("jkt48_cookie", None)
-                    get_member_database.clear()
-                    get_active_exclusive_events.clear()
-                    clear_exclusive_detail_cache()
-                    st.rerun()
+
+        if apply_cookie or remove_cookie:
+            try:
+                cookie = "" if remove_cookie else build_jkt48_cookie(clearance, waiting_room)
+            except ValueError as error:
+                st.error(str(error))
+            else:
+                set_jkt48_cookie(cookie)
+                get_member_database.clear()
+                get_active_exclusive_events.clear()
+                clear_exclusive_detail_cache()
+                st.rerun()
 
 
 @st.fragment(run_every=5)
@@ -174,6 +202,10 @@ def live_dashboard_fragment(
             f"Session and ticket details are unavailable. Showing event list information only; "
             f"retrying every {refresh_interval}s."
         )
+
+    if is_admin and is_waiting_room_detected():
+        if st.button("Mitigate Waiting Room", icon=":material/key:", key=f"wr_cookie_{event_code}"):
+            show_jkt48_cookie_dialog()
 
     if not has_event_detail:
         return
