@@ -136,8 +136,8 @@ def live_dashboard_fragment(
         event_state_key not in st.session_state
         or time.monotonic() - last_attempt >= refresh_interval
     ):
-        fetched_event_data = fetch_exclusive_detail(event_code)
         st.session_state[attempt_state_key] = time.monotonic()
+        fetched_event_data = fetch_exclusive_detail(event_code)
         if fetched_event_data:
             st.session_state[event_state_key] = fetched_event_data
             event_data = fetched_event_data

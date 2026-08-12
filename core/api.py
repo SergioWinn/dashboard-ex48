@@ -267,7 +267,7 @@ def get_active_exclusive_events():
         return KNOWN_EXCLUSIVE_EVENTS.copy()
 
 
-@st.cache_data(ttl=5, show_spinner=False)
+@st.cache_data(ttl=4, show_spinner=False)
 def _fetch_exclusive_detail_shared(code):
     url = f"https://jkt48.com/api/v1/exclusives/{code}?lang=id"
     cache_file = os.path.join(RUNTIME_CACHE_DIR, f"exclusive_{code}.json")
