@@ -216,9 +216,10 @@ def _read_cache(cache_file):
         return None
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=30)
 def get_member_database():
     url = "https://jkt48.com/api/v1/members?lang=id"
+    cache_file = os.path.join(RUNTIME_CACHE_DIR, "members.json")
     nickname_map = {}
     photo_map = {}
     try:
@@ -232,8 +233,12 @@ def get_member_database():
                     nickname_map[nickname] = name
                 if name and photo:
                     photo_map[name] = photo
+        if photo_map:
+            _write_cache(cache_file, {"nickname_map": nickname_map, "photo_map": photo_map})
     except Exception:
-        pass
+        cached_members = _read_cache(cache_file) or {}
+        nickname_map = cached_members.get("nickname_map", {})
+        photo_map = cached_members.get("photo_map", {})
     return nickname_map, photo_map
 
 

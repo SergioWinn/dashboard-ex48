@@ -13,6 +13,7 @@ from core.api import (
     clear_exclusive_detail_cache,
     fetch_exclusive_detail,
     get_active_exclusive_events,
+    get_member_database,
     is_waiting_room_detected,
     set_jkt48_cookie,
     _http_get,
@@ -22,6 +23,7 @@ from core.api import (
 class GetActiveExclusiveEventsTest(unittest.TestCase):
     def tearDown(self):
         get_active_exclusive_events.clear()
+        get_member_database.clear()
         clear_exclusive_detail_cache()
         set_jkt48_cookie("")
 
@@ -73,6 +75,19 @@ class GetActiveExclusiveEventsTest(unittest.TestCase):
         self.assertIs(response, live_api)
         self.assertNotIn("Cookie", get.call_args_list[0].kwargs["headers"])
         self.assertEqual(get.call_args_list[1].kwargs["headers"]["Cookie"], "cf_clearance=admin")
+
+    @patch("core.api._read_cache")
+    @patch("core.api._get_json", side_effect=LiveApiUnavailable("Cloudflare challenge"))
+    def test_member_photos_fall_back_to_last_successful_snapshot(self, _get_json, read_cache):
+        read_cache.return_value = {
+            "nickname_map": {"michie": "michelle alexandra"},
+            "photo_map": {"michelle alexandra": "https://example.com/michie.jpg"},
+        }
+
+        nicknames, photos = get_member_database()
+
+        self.assertEqual(nicknames["michie"], "michelle alexandra")
+        self.assertEqual(photos["michelle alexandra"], "https://example.com/michie.jpg")
 
     @patch("core.api._write_cache")
     @patch("core.api._get_json")
