@@ -146,10 +146,20 @@ def _is_waiting_room_response(response):
     return "waiting room" in body_start or "__cfwaitingroom" in body_start
 
 
+def _is_cloudflare_gate_response(response):
+    if _is_waiting_room_response(response):
+        return True
+    content_type = response.headers.get("content-type", "").lower()
+    if "json" in content_type:
+        return False
+    body_start = response.text[:1000].lower()
+    return response.status_code == 403 or "just a moment" in body_start or "cf-chl" in body_start
+
+
 def _http_get(url, timeout):
     global _waiting_room_detected
     response = _send_http_get(url, timeout, FALLBACK_HEADERS)
-    _waiting_room_detected = _is_waiting_room_response(response)
+    _waiting_room_detected = _is_cloudflare_gate_response(response)
     if _waiting_room_detected and (cookie := get_jkt48_cookie()):
         response = _send_http_get(url, timeout, {**FALLBACK_HEADERS, "Cookie": cookie})
     return response

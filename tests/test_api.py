@@ -56,6 +56,24 @@ class GetActiveExclusiveEventsTest(unittest.TestCase):
 
         self.assertEqual(cookie, f"cf_clearance=clearance; {WAITING_ROOM_COOKIE_NAME}=waiting")
 
+    @patch("core.api.USING_BROWSER_CLIENT", False)
+    @patch("core.api.browser_requests.get")
+    def test_admin_cookie_retries_cloudflare_challenge_for_member_photos(self, get):
+        challenge = Mock(
+            status_code=403,
+            headers={"content-type": "text/html"},
+            text="Just a moment... cf-chl",
+        )
+        live_api = Mock(status_code=200, headers={"content-type": "application/json"})
+        get.side_effect = [challenge, live_api]
+        set_jkt48_cookie("cf_clearance=admin")
+
+        response = _http_get("https://jkt48.com/api/v1/members", 15)
+
+        self.assertIs(response, live_api)
+        self.assertNotIn("Cookie", get.call_args_list[0].kwargs["headers"])
+        self.assertEqual(get.call_args_list[1].kwargs["headers"]["Cookie"], "cf_clearance=admin")
+
     @patch("core.api._write_cache")
     @patch("core.api._get_json")
     def test_live_response_is_used_without_manual_event_list(self, get_json, write_cache):
