@@ -51,7 +51,7 @@ if install_motion_observer:
     install_motion_observer()
 
 # --- RENDER MAIN HEADER ---
-st.markdown(
+st.html(
     f"""
     <div class="ldp-header">
         <div class="ldp-wordmark">
@@ -63,8 +63,7 @@ st.markdown(
         </div>
         <a href="https://tako.id/Sportagame19Win" target="_blank" rel="noopener noreferrer" class="tako-btn">Support project ↗</a>
     </div>
-    """,
-    unsafe_allow_html=True
+    """
 )
 
 try:
