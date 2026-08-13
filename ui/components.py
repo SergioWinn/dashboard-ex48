@@ -764,6 +764,7 @@ def render_share_controls(storage_key):
             wrapper.style.left = "-12000px";
             wrapper.style.top = "0";
             wrapper.style.width = "1080px";
+            wrapper.style.contain = "layout paint";
             wrapper.style.pointerEvents = "none";
             wrapper.appendChild(target);
             window.parent.document.body.appendChild(wrapper);

@@ -9,6 +9,8 @@ GLOBAL_CSS = "<style>\n" + TOKENS_CSS + """
 
 html, body, .stApp {
     font-family: var(--font-body);
+    max-width: 100%;
+    overflow-x: hidden;
     overflow-x: clip;
 }
 
@@ -25,6 +27,7 @@ body,
 .block-container {
     width: 100%;
     max-width: 1480px;
+    box-sizing: border-box;
     padding-top: var(--space-lg);
     padding-inline-start: max(clamp(var(--space-md), 3vw, var(--space-xl)), env(safe-area-inset-left));
     padding-inline-end: max(clamp(var(--space-md), 3vw, var(--space-xl)), env(safe-area-inset-right));
@@ -51,6 +54,7 @@ body,
     display: flex;
     align-items: center;
     gap: var(--space-md);
+    max-width: 100%;
 }
 
 .ldp-brand-icon {
