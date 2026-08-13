@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Estrella Ticket</title>
+  <desc id="desc">A two-tone event ticket cut by a five-point star, with a red live status dot.</desc>
+  <defs>
+    <mask id="ticket-cutout">
+      <rect width="128" height="128" fill="black"/>
+      <path d="M14 24H114V48A16 16 0 0 0 114 80V104H14V80A16 16 0 0 0 14 48Z" fill="white"/>
+      <path d="M64 32 71.2 54.1H94.5L75.6 67.8 82.9 90 64 76.3 45.1 90 52.4 67.8 33.5 54.1H56.8Z" fill="black"/>
+    </mask>
+  </defs>
+  <g mask="url(#ticket-cutout)">
+    <rect x="14" y="24" width="50" height="80" fill="#171B24"/>
+    <rect x="64" y="24" width="50" height="80" fill="#6487E8"/>
+  </g>
+  <circle cx="101" cy="37" r="6" fill="#D02B3C"/>
+</svg>

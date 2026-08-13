@@ -33,13 +33,13 @@ CATEGORY_LABELS = {
 }
 
 ASSETS_DIR = Path(__file__).parent / "assets"
-STATUS_ICON_DATA = base64.b64encode((ASSETS_DIR / "icon-status.png").read_bytes()).decode("ascii")
+BRAND_ICON_DATA = base64.b64encode((ASSETS_DIR / "estrella-ticket.svg").read_bytes()).decode("ascii")
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="JKT48 GLOBAL EXCLUSIVE",
     layout="wide",
-    page_icon=str(ASSETS_DIR / "icon.png"),
+    page_icon=str(ASSETS_DIR / "estrella-ticket.svg"),
 )
 
 # --- 2. APPLY CSS ---
@@ -53,14 +53,14 @@ st.markdown(
     <div class="ldp-header">
         <div class="ldp-wordmark">
             <div class="ldp-brand">
-                <img class="ldp-brand-icon" src="data:image/png;base64,%s" alt="">
+                <img class="ldp-brand-icon" src="data:image/svg+xml;base64,%s" alt="">
                 <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
             </div>
             <p class="ldp-subtitle">Choose an event and date, then scan available member slots.</p>
         </div>
         <a href="https://tako.id/Sportagame19Win" target="_blank" rel="noopener noreferrer" class="tako-btn">Support project ↗</a>
     </div>
-    """ % STATUS_ICON_DATA,
+    """ % BRAND_ICON_DATA,
     unsafe_allow_html=True
 )
 

@@ -1,60 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" width="1200" height="628">
-  <!--
-    EX48 Monitor — Brand Lockup v2
-    Canvas   : 1200 × 628 px (1.91:1)
-    Changes  : Ticket notches corrected to left/right edges · MONITOR letter-spacing −18% (14→11.5)
-    Typeface : Space Grotesk SemiBold 600
-    Palette  : #171B24 bg · #1E2333 icon bg · #F2F4F8 primary · #6688E8 cobalt · #C82C3A dot
-  -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" width="1200" height="628" role="img" aria-labelledby="title desc">
+  <title id="title">EX48 Monitor</title>
+  <desc id="desc">Estrella Ticket brand mark beside the EX48 Monitor wordmark.</desc>
+  <defs>
+    <mask id="ticket-cutout">
+      <rect width="128" height="128" fill="black"/>
+      <path d="M14 24H114V48A16 16 0 0 0 114 80V104H14V80A16 16 0 0 0 14 48Z" fill="white"/>
+      <path d="M64 32 71.2 54.1H94.5L75.6 67.8 82.9 90 64 76.3 45.1 90 52.4 67.8 33.5 54.1H56.8Z" fill="black"/>
+    </mask>
+  </defs>
 
   <rect width="1200" height="628" fill="#171B24"/>
 
-  <!-- Hairline structure lines (4% opacity) -->
-  <line x1="0" y1="314" x2="1200" y2="314" stroke="#F2F4F8" stroke-width="0.5" opacity="0.04"/>
-  <line x1="600" y1="0" x2="600" y2="628" stroke="#F2F4F8" stroke-width="0.5" opacity="0.04"/>
-
-  <!-- Icon: 286×286 squircle, center at (376, 324) -->
-  <g transform="translate(233,181)">
-
-    <path d="M12,143 C12,37 37,12 143,12 C249,12 274,37 274,143 C274,249 249,274 143,274 C37,274 12,249 12,143 Z" fill="#1E2333"/>
-
-    <!--
-      Ticket in local coords: x 44–242, y 72–214, midpoint y=143, notch r=28
-      Notches on LEFT (x=44) and RIGHT (x=242) edges
-    -->
-    <path d="M 44,72 L 242,72 L 242,115 A 28,28 0 0 0 242,171 L 242,214 L 44,214 L 44,171 A 28,28 0 0 0 44,115 Z" fill="#F2F4F8"/>
-
-    <rect x="62" y="89"  width="126" height="20" rx="4" fill="#6688E8"/>
-    <rect x="62" y="123" width="96"  height="20" rx="4" fill="#6688E8"/>
-    <rect x="62" y="157" width="126" height="20" rx="4" fill="#6688E8"/>
-
-    <circle cx="222" cy="90" r="9" fill="#C82C3A"/>
-
+  <g transform="translate(190 154) scale(2.5)">
+    <g mask="url(#ticket-cutout)">
+      <rect x="14" y="24" width="50" height="80" fill="#F2F4F8"/>
+      <rect x="64" y="24" width="50" height="80" fill="#6487E8"/>
+    </g>
+    <circle cx="101" cy="37" r="6" fill="#D02B3C"/>
   </g>
 
-  <!-- Divider -->
-  <line x1="556" y1="228" x2="556" y2="402" stroke="#F2F4F8" stroke-width="0.75" opacity="0.14"/>
-
-  <!-- EX48 — 96px, tracking 6 -->
-  <text
-    x="592" y="300"
-    font-family="'Space Grotesk', 'Arial Black', sans-serif"
-    font-weight="600"
-    font-size="96"
-    fill="#F2F4F8"
-    letter-spacing="6"
-    text-anchor="start"
-  >EX48</text>
-
-  <!-- MONITOR — 44px, tracking 11.5 (was 14, reduced ~18%) -->
-  <text
-    x="597" y="384"
-    font-family="'Space Grotesk', 'Arial Black', sans-serif"
-    font-weight="600"
-    font-size="44"
-    fill="#6688E8"
-    letter-spacing="11.5"
-    text-anchor="start"
-  >MONITOR</text>
-
+  <line x1="556" y1="228" x2="556" y2="402" stroke="#F2F4F8" stroke-width="1" opacity="0.16"/>
+  <text x="592" y="300" font-family="'Space Grotesk','Arial Black',sans-serif" font-weight="600" font-size="96" letter-spacing="6" fill="#F2F4F8">EX48</text>
+  <text x="597" y="384" font-family="'Space Grotesk','Arial Black',sans-serif" font-weight="600" font-size="44" letter-spacing="11.5" fill="#6487E8">MONITOR</text>
 </svg>
