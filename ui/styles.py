@@ -47,6 +47,18 @@ body,
     min-width: 0;
 }
 
+.ldp-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.ldp-brand-icon {
+    width: clamp(2.75rem, 5vw, 3.5rem);
+    height: clamp(2.75rem, 5vw, 3.5rem);
+    flex: 0 0 auto;
+}
+
 .source-readout {
     font-family: var(--font-mono);
     font-size: var(--text-xs);

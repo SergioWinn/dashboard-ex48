@@ -1,9 +1,11 @@
 # app.py
 
 import streamlit as st
+import base64
 import time
 from datetime import datetime, timedelta, timezone
 from html import escape
+from pathlib import Path
 
 from core.api import (
     build_jkt48_cookie,
@@ -30,8 +32,15 @@ CATEGORY_LABELS = {
     "PHOTOCARD": "Meet & Greet",
 }
 
+ASSETS_DIR = Path(__file__).parent / "assets"
+STATUS_ICON_DATA = base64.b64encode((ASSETS_DIR / "icon-status.png").read_bytes()).decode("ascii")
+
 # --- 1. PAGE CONFIGURATION ---
-st.set_page_config(page_title="JKT48 GLOBAL EXCLUSIVE", layout="wide", page_icon="🔴")
+st.set_page_config(
+    page_title="JKT48 GLOBAL EXCLUSIVE",
+    layout="wide",
+    page_icon=str(ASSETS_DIR / "icon.png"),
+)
 
 # --- 2. APPLY CSS ---
 st.markdown(GLOBAL_CSS.replace('\n', '').replace('\r', ''), unsafe_allow_html=True)
@@ -43,12 +52,15 @@ st.markdown(
     """
     <div class="ldp-header">
         <div class="ldp-wordmark">
-            <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
+            <div class="ldp-brand">
+                <img class="ldp-brand-icon" src="data:image/png;base64,%s" alt="">
+                <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
+            </div>
             <p class="ldp-subtitle">Choose an event and date, then scan available member slots.</p>
         </div>
         <a href="https://tako.id/Sportagame19Win" target="_blank" rel="noopener noreferrer" class="tako-btn">Support project ↗</a>
     </div>
-    """,
+    """ % STATUS_ICON_DATA,
     unsafe_allow_html=True
 )
 
