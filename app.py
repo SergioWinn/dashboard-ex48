@@ -1,6 +1,7 @@
 # app.py
 
 import streamlit as st
+import base64
 import time
 from datetime import datetime, timedelta, timezone
 from html import escape
@@ -32,11 +33,6 @@ CATEGORY_LABELS = {
 }
 
 ASSETS_DIR = Path(__file__).parent / "assets"
-BRAND_ICON_HTML = (ASSETS_DIR / "estrella-ticket.svg").read_text(encoding="utf-8").replace(
-    "<svg ",
-    '<svg class="ldp-brand-icon" style="--brand-ink:var(--color-ink)" aria-hidden="true" ',
-    1,
-)
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
@@ -44,6 +40,12 @@ st.set_page_config(
     layout="wide",
     page_icon=str(ASSETS_DIR / "estrella-ticket.svg"),
 )
+
+brand_svg = (ASSETS_DIR / "estrella-ticket.svg").read_text(encoding="utf-8")
+brand_ink = "#F2F4F8" if st.context.theme.type == "dark" else "#171B24"
+BRAND_ICON_DATA = base64.b64encode(
+    brand_svg.replace("var(--brand-ink, #171B24)", brand_ink).encode("utf-8")
+).decode("ascii")
 
 # --- 2. APPLY CSS ---
 st.markdown(GLOBAL_CSS.replace('\n', '').replace('\r', ''), unsafe_allow_html=True)
@@ -56,7 +58,7 @@ st.html(
     <div class="ldp-header">
         <div class="ldp-wordmark">
             <div class="ldp-brand">
-                {BRAND_ICON_HTML}
+                <img class="ldp-brand-icon" src="data:image/svg+xml;base64,{BRAND_ICON_DATA}" alt="">
                 <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
             </div>
             <p class="ldp-subtitle">Choose an event and date, then scan available member slots.</p>
