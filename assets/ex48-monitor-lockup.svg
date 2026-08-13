@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" width="1200" height="628" role="img" aria-labelledby="title desc">
   <title id="title">EX48 Monitor</title>
   <desc id="desc">Estrella Ticket brand mark beside the EX48 Monitor wordmark.</desc>
+  <style>
+    .canvas { fill: var(--canvas, #171B24); }
+    .primary { fill: var(--primary, #F2F4F8); }
+    .divider { stroke: var(--primary, #F2F4F8); }
+    @media (prefers-color-scheme: light) {
+      :root { --canvas: #F7F8FA; --primary: #171B24; }
+    }
+  </style>
   <defs>
     <mask id="ticket-cutout">
       <rect width="128" height="128" fill="black"/>
@@ -9,17 +17,17 @@
     </mask>
   </defs>
 
-  <rect width="1200" height="628" fill="#171B24"/>
+  <rect class="canvas" width="1200" height="628"/>
 
   <g transform="translate(190 154) scale(2.5)">
     <g mask="url(#ticket-cutout)">
-      <rect x="14" y="24" width="50" height="80" fill="#F2F4F8"/>
+      <rect class="primary" x="14" y="24" width="50" height="80"/>
       <rect x="64" y="24" width="50" height="80" fill="#6487E8"/>
     </g>
     <circle cx="101" cy="37" r="6" fill="#D02B3C"/>
   </g>
 
-  <line x1="556" y1="228" x2="556" y2="402" stroke="#F2F4F8" stroke-width="1" opacity="0.16"/>
-  <text x="592" y="300" font-family="'Space Grotesk','Arial Black',sans-serif" font-weight="600" font-size="96" letter-spacing="6" fill="#F2F4F8">EX48</text>
+  <line class="divider" x1="556" y1="228" x2="556" y2="402" stroke-width="1" opacity="0.16"/>
+  <text class="primary" x="592" y="300" font-family="'Space Grotesk','Arial Black',sans-serif" font-weight="600" font-size="96" letter-spacing="6">EX48</text>
   <text x="597" y="384" font-family="'Space Grotesk','Arial Black',sans-serif" font-weight="600" font-size="44" letter-spacing="11.5" fill="#6487E8">MONITOR</text>
 </svg>

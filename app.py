@@ -1,7 +1,6 @@
 # app.py
 
 import streamlit as st
-import base64
 import time
 from datetime import datetime, timedelta, timezone
 from html import escape
@@ -33,7 +32,11 @@ CATEGORY_LABELS = {
 }
 
 ASSETS_DIR = Path(__file__).parent / "assets"
-BRAND_ICON_DATA = base64.b64encode((ASSETS_DIR / "estrella-ticket.svg").read_bytes()).decode("ascii")
+BRAND_ICON_HTML = (ASSETS_DIR / "estrella-ticket.svg").read_text(encoding="utf-8").replace(
+    "<svg ",
+    '<svg class="ldp-brand-icon" style="--brand-ink:var(--color-ink)" aria-hidden="true" ',
+    1,
+)
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
@@ -49,18 +52,18 @@ if install_motion_observer:
 
 # --- RENDER MAIN HEADER ---
 st.markdown(
-    """
+    f"""
     <div class="ldp-header">
         <div class="ldp-wordmark">
             <div class="ldp-brand">
-                <img class="ldp-brand-icon" src="data:image/svg+xml;base64,%s" alt="">
+                {BRAND_ICON_HTML}
                 <h1 class="ldp-title">GLOBAL EXCLUSIVE MONITOR</h1>
             </div>
             <p class="ldp-subtitle">Choose an event and date, then scan available member slots.</p>
         </div>
         <a href="https://tako.id/Sportagame19Win" target="_blank" rel="noopener noreferrer" class="tako-btn">Support project ↗</a>
     </div>
-    """ % BRAND_ICON_DATA,
+    """,
     unsafe_allow_html=True
 )
 

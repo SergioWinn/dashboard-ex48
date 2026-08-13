@@ -1,6 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
   <title id="title">Estrella Ticket</title>
   <desc id="desc">A two-tone event ticket cut by a five-point star, with a red live status dot.</desc>
+  <style>
+    .ticket-left { fill: var(--brand-ink, #171B24); }
+    @media (prefers-color-scheme: dark) {
+      :root { --brand-ink: #F2F4F8; }
+    }
+  </style>
   <defs>
     <mask id="ticket-cutout">
       <rect width="128" height="128" fill="black"/>
@@ -9,7 +15,7 @@
     </mask>
   </defs>
   <g mask="url(#ticket-cutout)">
-    <rect x="14" y="24" width="50" height="80" fill="#171B24"/>
+    <rect class="ticket-left" x="14" y="24" width="50" height="80"/>
     <rect x="64" y="24" width="50" height="80" fill="#6487E8"/>
   </g>
   <circle cx="101" cy="37" r="6" fill="#D02B3C"/>
