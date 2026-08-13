@@ -54,9 +54,65 @@ body,
 }
 
 .ldp-brand-icon {
+    position: relative;
+    display: block;
     width: clamp(2.75rem, 5vw, 3.5rem);
     height: clamp(2.75rem, 5vw, 3.5rem);
     flex: 0 0 auto;
+}
+
+.ldp-brand-half {
+    position: absolute;
+    top: 18.75%;
+    bottom: 18.75%;
+    width: 39.1%;
+}
+
+.ldp-brand-half::after {
+    position: absolute;
+    top: 50%;
+    width: 40%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--color-paper);
+    content: "";
+}
+
+.ldp-brand-half-left {
+    left: 10.9%;
+    background: var(--color-ink);
+}
+
+.ldp-brand-half-left::after {
+    left: 0;
+    transform: translate(-50%, -50%);
+}
+
+.ldp-brand-half-right {
+    right: 10.9%;
+    background: var(--color-accent);
+}
+
+.ldp-brand-half-right::after {
+    right: 0;
+    transform: translate(50%, -50%);
+}
+
+.ldp-brand-star {
+    position: absolute;
+    inset: 25% 25%;
+    clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 92%, 50% 71%, 21% 92%, 32% 57%, 2% 35%, 39% 35%);
+    background: var(--color-paper);
+}
+
+.ldp-brand-dot {
+    position: absolute;
+    top: 27%;
+    right: 16%;
+    width: 9.5%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--color-danger);
 }
 
 .source-readout {
