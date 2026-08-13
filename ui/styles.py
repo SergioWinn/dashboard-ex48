@@ -20,6 +20,15 @@ body,
     color: var(--color-ink);
 }
 
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"],
+[data-testid="stMainBlockContainer"] {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+}
+
 [data-testid="stHeader"] {
     background: var(--color-paper);
 }
@@ -376,6 +385,9 @@ div[data-baseweb="select"][aria-disabled="true"] > div {
 
 div[class*="st-key-filter_date_"] [role="radiogroup"] {
     display: flex;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     flex-wrap: nowrap;
     gap: var(--space-md);
     overflow-x: auto;
@@ -383,6 +395,13 @@ div[class*="st-key-filter_date_"] [role="radiogroup"] {
     padding-bottom: var(--space-xs);
     scroll-snap-type: inline proximity;
     scrollbar-width: none;
+}
+
+div[class*="st-key-filter_date_"],
+div[class*="st-key-filter_date_"] [data-testid="stRadio"] {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 div[class*="st-key-filter_date_"] [role="radiogroup"]::-webkit-scrollbar {
