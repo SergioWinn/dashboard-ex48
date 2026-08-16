@@ -17,8 +17,9 @@ from core.api import (
     set_jkt48_cookie,
 )
 from core.refresh import get_detail_refresh_interval, get_sales_window
+from core.stats import calculate_event_stats, format_rupiah, load_member_metadata, table_rows
 from ui.styles import GLOBAL_CSS
-from ui.components import render_event_cards, render_share_controls
+from ui.components import render_event_cards, render_share_controls, render_stats_controls, render_stats_payload
 
 try:
     from ui.components import install_motion_observer
@@ -78,7 +79,7 @@ is_admin = bool(access_key and access_key in admin_keys)
 
 # Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V4
 # component: dialog · genre: modern-minimal · theme: Cobalt · contrast: native Streamlit
-@st.dialog("Mitigate Waiting Room", width="medium", icon=":material/key:")
+@st.dialog("Mitigate Waiting Room", width="medium")
 def show_jkt48_cookie_dialog():
     cookie_active = bool(get_jkt48_cookie())
     if cookie_active:
@@ -129,6 +130,7 @@ def live_dashboard_fragment(
     search_query,
     nickname_map,
     photo_map,
+    member_metadata,
     available_only,
     current_event_codes,
 ):
@@ -224,35 +226,59 @@ def live_dashboard_fragment(
     if not has_event_detail:
         return
 
-    total_sold = 0
-    sisa_kuota = 0
-    for sesi in event_data.get("session", []):
-        for member in sesi.get("session_detail", []):
-            try:
-                sold = int(member.get("tickets_sold") or 0)
-                avail = int(member.get("available_quota") or 0)
-            except (TypeError, ValueError):
-                sold, avail = 0, 0
-            total_sold += sold
-            sisa_kuota += avail
-
-    total_tiket = total_sold + sisa_kuota
-    sold_rate = (total_sold / total_tiket * 100) if total_tiket > 0 else 0.0
+    event_stats = calculate_event_stats(event_data, member_metadata)
+    summary = event_stats["summary"]
 
     with st.container(border=False, key="summary_metrics"):
-        st.markdown('<div class="metrics-scope">Entire event totals</div>', unsafe_allow_html=True)
-        col_m1, col_m2, col_m3 = st.columns(3, vertical_alignment="center")
-        with col_m1:
-            st.metric(label="Total Tickets", value=f"{total_tiket:,}")
-        with col_m2:
-            st.metric(label="Remaining", value=f"{sisa_kuota:,}")
-        with col_m3:
-            st.metric(label="Sold Rate", value=f"{sold_rate:.1f}%")
+        st.markdown(
+            f"""
+            <div class="metrics-scope">Entire event totals</div>
+            <div class="summary-stat-grid">
+                <div class="summary-stat">
+                    <span class="summary-stat-label">Total Tickets</span>
+                    <strong>{summary['capacity']:,}</strong>
+                </div>
+                <div class="summary-stat">
+                    <span class="summary-stat-label">Sold</span>
+                    <strong>{summary['sold']:,}</strong>
+                </div>
+                <div class="summary-stat">
+                    <span class="summary-stat-label">Remaining</span>
+                    <strong>{summary['remaining']:,}</strong>
+                </div>
+                <div class="summary-stat summary-stat-rate">
+                    <span class="summary-stat-label">Sold Rate</span>
+                    <strong>{summary['sold_rate']:.1f}%</strong>
+                </div>
+                <div class="summary-stat summary-stat-revenue">
+                    <span class="summary-stat-label">Revenue Capture</span>
+                    <strong>{format_rupiah(summary['revenue'])}</strong>
+                    <small>/ {format_rupiah(summary['potential_revenue'])} potential</small>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     render_event_cards(event_data, search_query, nickname_map, photo_map, available_only, is_event_closed)
+    render_stats_payload(
+        {
+            "Member": table_rows(event_stats["members"]),
+            "Generation": table_rows(event_stats["generations"], include_members=True),
+            "Team": table_rows(event_stats["teams"], include_members=True),
+        },
+        f"{event_data.get('title', 'Event')} statistics",
+        photo_map,
+    )
 
 
 nickname_map, photo_map = get_member_database()
+member_metadata = load_member_metadata()
+for member in member_metadata.values():
+    full_name = member["full_name"].strip().lower()
+    nickname = member["nickname"].strip().lower()
+    if nickname and full_name:
+        nickname_map.setdefault(nickname, full_name)
 active_events = get_active_exclusive_events()
 
 categories_dict = {}
@@ -319,9 +345,12 @@ if available_categories:
         global_query,
         nickname_map,
         photo_map,
+        member_metadata,
         available_only,
         tuple(event.get("code") for event in active_events if event.get("code")),
     )
+
+    render_stats_controls(can_share=is_admin)
 
     if is_admin:
         render_share_controls(f"share_selection_{selected_event.get('code', 'unknown')}")

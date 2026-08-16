@@ -2,6 +2,7 @@
 
 import streamlit as st
 import hashlib
+import json
 import re
 from html import escape
 from datetime import datetime, timedelta, timezone
@@ -388,7 +389,616 @@ def render_event_cards(fresh_event_data, search_query, nickname_map, photo_map, 
 
     st.markdown(master_html_buffer, unsafe_allow_html=True)
     
-def render_share_controls(storage_key):
+def render_stats_payload(rows_by_tab, title, photo_map=None):
+    payload = json.dumps(
+        {"rowsByTab": rows_by_tab, "title": str(title or "Event statistics"), "photoMap": photo_map or {}},
+        ensure_ascii=False,
+    )
+    components.html(
+        f"""
+        <script>
+        window.parent.__ex48StatsPayload = {payload};
+        const frame = window.frameElement;
+        if (frame) {{
+            frame.style.display = "none";
+            frame.setAttribute("aria-hidden", "true");
+        }}
+        </script>
+        """,
+        height=0,
+    )
+
+
+def render_stats_controls(rows_by_tab=None, title="Event statistics", can_share=False):
+    payload = json.dumps(rows_by_tab or {}, ensure_ascii=False)
+    safe_title = json.dumps(str(title or "Event statistics"), ensure_ascii=False)
+    capture_script = (
+        '<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" '
+        'onerror="const fallback=document.createElement(\'script\');'
+        "fallback.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';"
+        'document.head.appendChild(fallback);"></script>'
+        if can_share else ""
+    )
+    controls_html = r"""
+    __CAPTURE_SCRIPT__
+    <style>
+        :root { --stats-accent: oklch(56% 0.2 256); --stats-accent-strong: oklch(48% 0.2 256); --stats-ink: oklch(98.5% 0.004 250); --stats-focus: oklch(18% 0.02 258); --stats-shadow: oklch(24% 0.02 258 / 0.18); --ease-out: cubic-bezier(.16,1,.3,1); }
+        body { margin: 0; background: transparent; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .stats-action { color: var(--stats-ink); border: 0; width: 48px; height: 48px; border-radius: 50%; background: var(--stats-accent); font-size: 19px; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 1px 2px var(--stats-shadow); transition: transform 100ms var(--ease-out); }
+        .stats-action svg { width: 20px; height: 20px; stroke: currentColor; }
+        .stats-action:active { transform: translateY(1px); }
+        .stats-action:focus-visible { outline: 3px solid var(--stats-focus); outline-offset: 2px; }
+        @media (hover: hover) and (pointer: fine) { .stats-action:hover { background: var(--stats-accent-strong); } }
+        @media (prefers-reduced-motion: reduce) { .stats-action { transition: none; } }
+    </style>
+    <button class="stats-action" id="stats-btn" title="Open event statistics" aria-label="Open event statistics"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18"></path><path d="M7 15v2"></path><path d="M12 9v8"></path><path d="M17 5v12"></path></svg></button>
+    <script>
+        const canShareStats = __CAN_SHARE__;
+        const initialPayload = { rowsByTab: __PAYLOAD__, title: __TITLE__, photoMap: {} };
+        function getStatsPayload() {
+            return window.parent.__ex48StatsPayload || initialPayload;
+        }
+        const iframe = window.frameElement;
+        if (iframe) {
+            iframe.style.position = "fixed";
+            iframe.style.bottom = "calc(56px + env(safe-area-inset-bottom, 0px))";
+            iframe.style.right = "calc(16px + env(safe-area-inset-right, 0px))";
+            iframe.style.width = "60px";
+            iframe.style.height = "60px";
+            iframe.style.zIndex = "1001";
+            iframe.style.border = "0";
+            iframe.style.background = "transparent";
+            iframe.setAttribute("title", "Event statistics");
+        }
+
+        const oldDialog = window.parent.document.getElementById("event-stats-dialog");
+        const reopenDialog = Boolean(oldDialog && oldDialog.open);
+        oldDialog?.remove();
+
+        const dialog = window.parent.document.createElement("dialog");
+        dialog.id = "event-stats-dialog";
+        dialog.setAttribute("aria-labelledby", "event-stats-title");
+        dialog.innerHTML = `
+            <style>
+                #event-stats-dialog { --dialog-bg: var(--color-graphite); --dialog-surface: var(--color-graphite-2); --dialog-rule: var(--color-rule-strong); --dialog-ink: var(--color-graphite-ink); --dialog-ink-muted: var(--color-graphite-muted); --dialog-accent: var(--color-accent); --dialog-focus: var(--color-graphite-ink); --dialog-backdrop: var(--color-overlay); --dialog-shadow: var(--color-shadow); position: fixed; inset: 0; width: min(980px, calc(100% - 24px)); height: fit-content; max-height: min(760px, calc(100dvh - 24px)); margin: auto; padding: 0; border: 0; border-radius: var(--radius-card); background: var(--dialog-bg); color: var(--dialog-ink); font-family: var(--font-body); box-shadow: 0 1px 2px var(--dialog-shadow); }
+                #event-stats-dialog::backdrop { background: var(--dialog-backdrop); }
+                #event-stats-dialog[open] { animation: stats-dialog-in var(--dur-short) var(--ease-out); }
+                #event-stats-dialog[open]::backdrop { animation: stats-backdrop-in var(--dur-short) var(--ease-out); }
+                @keyframes stats-dialog-in { from { opacity: 0; transform: translateY(4px); } }
+                @keyframes stats-backdrop-in { from { opacity: 0; } }
+                .event-stats-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: var(--space-md); border-bottom: 1px solid var(--dialog-surface); }
+                .event-stats-head h2 { margin: 0; min-width: 0; font-family: var(--font-display); font-size: 18px; font-style: normal; line-height: 1.2; overflow-wrap: anywhere; }
+                .event-stats-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-xs); }
+                .event-stats-share, .event-stats-close { width: 44px; height: 44px; flex: 0 0 44px; border: 0; border-radius: 50%; background: var(--dialog-surface); color: var(--dialog-ink); cursor: pointer; font-size: 20px; display: inline-grid; place-items: center; }
+                .event-stats-share[hidden] { display: none; }
+                .event-stats-share svg { width: 19px; height: 19px; stroke: currentColor; }
+                .event-stats-share[data-state="success"] { background: var(--dialog-accent); color: var(--stats-ink); }
+                .event-stats-share[data-state="loading"], .event-stats-share:disabled { cursor: wait; opacity: 0.75; }
+                .event-stats-tabs { display: flex; gap: var(--space-xs); padding: var(--space-sm) var(--space-md) 0; }
+                .event-stats-tab { min-height: 44px; border: 0; border-radius: var(--radius-input); background: transparent; color: var(--dialog-ink-muted); padding: var(--space-xs) var(--space-sm); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+                .event-stats-tab[aria-selected="true"] { background: var(--dialog-surface); color: var(--dialog-ink); }
+                .event-stats-filters { display: none; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); padding: var(--space-sm) var(--space-md) 0; }
+                .event-stats-filters.is-visible { display: grid; }
+                .event-stats-filters label { display: grid; gap: var(--space-2xs); color: var(--dialog-ink-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+                .event-stats-filters select { min-height: 44px; min-width: 0; border: 1px solid var(--dialog-surface); border-radius: var(--radius-input); background: var(--dialog-bg); color: var(--dialog-ink); padding-inline: var(--space-xs); font: inherit; }
+                .event-stats-body { max-height: calc(100dvh - 190px); overflow: auto; padding: var(--space-md); }
+                .event-stats-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+                .event-stats-table th, .event-stats-table td { padding: var(--space-xs); border-bottom: 1px solid var(--dialog-surface); text-align: left; white-space: pre-line; }
+                .event-stats-table th:first-child, .event-stats-table td:first-child { text-align: left; white-space: normal; overflow-wrap: anywhere; }
+                .event-stats-table th { color: var(--dialog-ink-muted); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+                .event-stats-member { display: inline-flex; min-width: 0; align-items: center; gap: 8px; text-align: left; }
+                .event-stats-avatar { width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%; border: 1px solid var(--dialog-surface); background: var(--dialog-bg); object-fit: cover; color: var(--dialog-ink-muted); display: inline-grid; place-items: center; font-size: 10px; font-weight: 800; letter-spacing: 0; }
+                img.event-stats-avatar { display: inline-block; }
+                .event-stats-member-name { min-width: 0; overflow-wrap: anywhere; }
+                .event-stats-mobile-list { display: none; }
+                .event-stats-member-card { display: grid; gap: var(--space-xs); padding: var(--space-sm); border: 1px solid var(--dialog-surface); border-radius: var(--radius-input); background: var(--dialog-surface); }
+                .event-stats-member-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); }
+                .event-stats-member-card-rank { flex: 0 0 auto; color: var(--dialog-ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+                .event-stats-member-card-rate { flex: 0 0 auto; color: var(--dialog-ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+                .event-stats-member-card-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-xs); }
+                .event-stats-member-card-metric span { display: block; color: var(--dialog-ink-muted); font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+                .event-stats-member-card-metric strong { display: block; margin-top: 2px; font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; white-space: pre-line; overflow-wrap: anywhere; }
+                .event-stats-rank-list { display: grid; gap: var(--space-xs); }
+                .event-stats-rank-card { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: var(--space-sm); padding: var(--space-sm); border: 1px solid var(--dialog-surface); border-radius: var(--radius-input); background: var(--dialog-surface); }
+                .event-stats-rank { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--dialog-bg); color: var(--dialog-ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+                .event-stats-group-main { min-width: 0; }
+                .event-stats-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm); margin-bottom: var(--space-xs); }
+                .event-stats-group-name { margin: 0; min-width: 0; font-size: 18px; font-style: normal; line-height: 1.2; overflow-wrap: anywhere; }
+                .event-stats-group-rate { flex: 0 0 auto; color: var(--dialog-ink); font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+                .event-stats-group-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-xs); margin-bottom: var(--space-xs); }
+                .event-stats-group-metric { min-width: 0; }
+                .event-stats-group-metric span, .event-stats-roster-label { display: block; color: var(--dialog-ink-muted); font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+                .event-stats-group-metric strong { display: block; margin-top: 2px; font-size: 15px; font-weight: 750; font-variant-numeric: tabular-nums; white-space: pre-line; overflow-wrap: anywhere; }
+                .event-stats-roster { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--space-2xs); }
+                .event-stats-roster-chip { max-width: 100%; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 4px; border-radius: 999px; background: var(--dialog-bg); color: var(--dialog-ink); font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+                .event-stats-roster-chip .event-stats-avatar { width: 22px; height: 22px; flex-basis: 22px; font-size: 9px; }
+                .event-stats-empty { margin: 0; color: var(--dialog-ink-muted); }
+                #event-stats-dialog button:active { transform: translateY(1px); }
+                #event-stats-dialog button:focus-visible { outline: 3px solid var(--dialog-focus); outline-offset: 2px; }
+                @media (hover: hover) and (pointer: fine) {
+                    .event-stats-close:hover, .event-stats-share:hover, .event-stats-tab:hover { background: var(--dialog-surface); }
+                }
+                @media (min-width: 40rem) {
+                    .event-stats-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                }
+                @media (max-width: 40rem) {
+                    .event-stats-head { padding: var(--space-sm); }
+                    .event-stats-tabs { padding-inline: var(--space-sm); overflow-x: auto; }
+                    .event-stats-filters { padding-inline: var(--space-sm); }
+                    .event-stats-body { padding: var(--space-sm); }
+                    .event-stats-table { display: none; }
+                    .event-stats-mobile-list { display: grid; gap: var(--space-xs); }
+                    .event-stats-rank-card { grid-template-columns: 36px minmax(0, 1fr); padding: var(--space-xs); }
+                    .event-stats-group-head { display: grid; gap: 2px; }
+                    .event-stats-group-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    #event-stats-dialog[open], #event-stats-dialog[open]::backdrop { animation: none; }
+                }
+            </style>
+            <div class="event-stats-head">
+                <h2 id="event-stats-title"></h2>
+                <div class="event-stats-actions">
+                    <button class="event-stats-share" type="button" aria-label="Copy statistics image" title="Copy statistics image" hidden><svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path><path d="m11 13 1.5 1.5L16 11"></path></svg></button>
+                    <button class="event-stats-close" type="button" aria-label="Close statistics">×</button>
+                </div>
+            </div>
+            <div class="event-stats-tabs" role="tablist" aria-label="Statistics groups"></div>
+            <div class="event-stats-filters" aria-label="Member filters">
+                <label>Generation<select id="event-stats-generation"></select></label>
+                <label>Team<select id="event-stats-team"></select></label>
+            </div>
+            <div class="event-stats-body"></div>`;
+        window.parent.document.body.appendChild(dialog);
+        window.addEventListener("unload", () => dialog.remove(), { once: true });
+
+        const tabList = dialog.querySelector(".event-stats-tabs");
+        const filters = dialog.querySelector(".event-stats-filters");
+        const generationFilter = dialog.querySelector("#event-stats-generation");
+        const teamFilter = dialog.querySelector("#event-stats-team");
+        const body = dialog.querySelector(".event-stats-body");
+        const shareButton = dialog.querySelector(".event-stats-share");
+        let activeTab = "";
+        let selectedGeneration = "All";
+        let selectedTeam = "All";
+        let shareResetTimer = null;
+        shareButton.hidden = !canShareStats;
+
+        function rowsByTab() {
+            return getStatsPayload().rowsByTab || {};
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "").replace(/[&<>"']/g, character => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+            }[character]));
+        }
+
+        function photoFor(name) {
+            const photos = getStatsPayload().photoMap || {};
+            return photos[String(name || "").trim().toLowerCase()] || "";
+        }
+
+        function proxiedPhotoUrl(url) {
+            return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=64&h=64&fit=cover&a=top&output=webp`;
+        }
+
+        function initials(name) {
+            return String(name || "?").trim().split(/\s+/).slice(0, 2).map(part => part[0] || "").join("").toUpperCase() || "?";
+        }
+
+        function avatarHtml(name) {
+            const photo = photoFor(name);
+            if (photo) {
+                return `<img class="event-stats-avatar" src="${escapeHtml(proxiedPhotoUrl(photo))}" alt="" loading="lazy" crossorigin="anonymous" data-initials="${escapeHtml(initials(name))}">`;
+            }
+            return `<span class="event-stats-avatar" aria-hidden="true">${escapeHtml(initials(name))}</span>`;
+        }
+
+        function memberHtml(name) {
+            return `<span class="event-stats-member">${avatarHtml(name)}<span class="event-stats-member-name">${escapeHtml(name)}</span></span>`;
+        }
+
+        function parsePercent(value) {
+            const number = Number(String(value || "").replace("%", ""));
+            return Number.isFinite(number) ? number : 0;
+        }
+
+        function parseNumber(value) {
+            const number = Number(String(value || "").replaceAll(",", ""));
+            return Number.isFinite(number) ? number : 0;
+        }
+
+        function isMemberFiltered() {
+            return selectedGeneration !== "All" || selectedTeam !== "All";
+        }
+
+        function withFilterRanks(rows) {
+            if (activeTab !== "Member" || !isMemberFiltered()) return rows;
+            let previousRate = null;
+            let previousRank = 0;
+            return rows.map((row, index) => {
+                const rate = parsePercent(row["Sold %"]);
+                if (rate !== previousRate) {
+                    previousRank = index + 1;
+                    previousRate = rate;
+                }
+                return {
+                    Rank: `${previousRank} (${row.Rank})`,
+                    Name: row.Name,
+                    Sold: row.Sold,
+                    Remaining: row.Remaining,
+                    "Sold %": row["Sold %"],
+                    Revenue: row.Revenue,
+                    Generation: row.Generation,
+                    Team: row.Team,
+                };
+            });
+        }
+
+        function canvasToBlob(canvas) {
+            return new Promise((resolve, reject) => {
+                canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Image conversion failed")), "image/png");
+            });
+        }
+
+        function withTimeout(promise, timeoutMs) {
+            return Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Asset timeout")), timeoutMs)),
+            ]);
+        }
+
+        async function waitForStatsAssets(target) {
+            const fallbackPixel = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+            await withTimeout(window.parent.document.fonts?.ready ?? Promise.resolve(), 4000).catch(() => undefined);
+            await Promise.all([...target.querySelectorAll("img")].map(async image => {
+                try {
+                    image.loading = "eager";
+                    image.crossOrigin = "anonymous";
+                    if (!image.complete) {
+                        await withTimeout(new Promise((resolve, reject) => {
+                            image.addEventListener("load", resolve, { once: true });
+                            image.addEventListener("error", reject, { once: true });
+                        }), 5000);
+                    }
+                    if (image.decode) await withTimeout(image.decode(), 2500);
+                    if (!image.naturalWidth) throw new Error("Empty image");
+                } catch {
+                    image.removeAttribute("crossorigin");
+                    image.src = fallbackPixel;
+                }
+            }));
+        }
+
+        async function getStatsCaptureLibrary() {
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+                if (window.html2canvas) return window.html2canvas;
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+            throw new Error("Capture library failed to load");
+        }
+
+        function setStatsShareState(state, detail = "") {
+            const labels = {
+                idle: ["Copy statistics image", "Copy statistics image"],
+                loading: ["Preparing image", "Preparing image"],
+                success: ["Copied", "Copied"],
+                error: ["Capture failed", "Capture failed"],
+            };
+            const [title, label] = labels[state] || labels.idle;
+            shareButton.title = detail || title;
+            shareButton.setAttribute("aria-label", detail || label);
+            shareButton.dataset.state = state;
+            shareButton.disabled = state === "loading";
+        }
+
+        function statsCaptureErrorMessage(error) {
+            if (error?.name === "NotAllowedError" || String(error?.message).includes("Clipboard")) {
+                return "Browser blocked image clipboard. Allow clipboard access for this site, then try again.";
+            }
+            if (error?.name === "SecurityError") return "A photo blocked image capture. Reload the page and try again.";
+            if (String(error?.message).includes("library")) return "Capture tools did not load. Reload the page and try again.";
+            if (String(error?.message).includes("conversion")) return "The image was too large to convert.";
+            return String(error?.message || "The statistics image could not be created.");
+        }
+
+        async function copyStatsImage() {
+            if (!canShareStats) return;
+            if (shareResetTimer) clearTimeout(shareResetTimer);
+            setStatsShareState("loading");
+            let wrapper = null;
+            try {
+                const html2canvas = await getStatsCaptureLibrary();
+                const source = dialog;
+                const target = window.parent.document.createElement("div");
+                target.id = "event-stats-capture-target";
+                target.innerHTML = source.innerHTML;
+                target.querySelectorAll("style").forEach(style => style.remove());
+                target.querySelectorAll("img").forEach(image => {
+                    const sourceUrl = image.getAttribute("src");
+                    image.crossOrigin = "anonymous";
+                    if (sourceUrl) {
+                        image.removeAttribute("src");
+                        image.setAttribute("src", sourceUrl);
+                    }
+                });
+                target.querySelector(".event-stats-actions")?.remove();
+                const targetBody = target.querySelector(".event-stats-body");
+                targetBody.style.maxHeight = "none";
+                targetBody.style.overflow = "visible";
+                target.style.display = "block";
+                target.style.position = "relative";
+                target.style.inset = "auto";
+                target.style.width = `${Math.min(980, Math.max(680, Math.ceil(source.getBoundingClientRect().width)))}px`;
+                target.style.maxHeight = "none";
+                target.style.margin = "0";
+                target.style.padding = "0";
+                const captureStyle = window.parent.document.createElement("style");
+                captureStyle.textContent = `
+                    #event-stats-capture-target { box-sizing: border-box; border-radius: 8px; background: rgb(24, 29, 36); color: rgb(232, 238, 245); font-family: Inter, Arial, sans-serif; overflow: hidden; }
+                    #event-stats-capture-target * { box-sizing: border-box; box-shadow: none !important; }
+                    #event-stats-capture-target .event-stats-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px; border-bottom: 1px solid rgb(31, 37, 46); }
+                    #event-stats-capture-target .event-stats-head h2 { margin: 0; font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
+                    #event-stats-capture-target .event-stats-share, #event-stats-capture-target .event-stats-close { display: none !important; }
+                    #event-stats-capture-target .event-stats-tabs { display: flex; gap: 8px; padding: 16px 24px 0; }
+                    #event-stats-capture-target .event-stats-tab { min-height: 44px; border: 0; border-radius: 8px; background: transparent; color: rgb(164, 173, 184); padding: 8px 16px; font: inherit; font-size: 14px; font-weight: 700; }
+                    #event-stats-capture-target .event-stats-tab[aria-selected="true"] { background: rgb(31, 37, 46); color: rgb(232, 238, 245); }
+                    #event-stats-capture-target .event-stats-filters { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 16px 24px 0; }
+                    #event-stats-capture-target .event-stats-filters.is-visible { display: grid; }
+                    #event-stats-capture-target .event-stats-filters label { display: grid; gap: 4px; color: rgb(164, 173, 184); font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+                    #event-stats-capture-target .event-stats-filters select { min-height: 44px; border: 1px solid rgb(31, 37, 46); border-radius: 8px; background: rgb(24, 29, 36); color: rgb(232, 238, 245); padding: 0 8px; font: inherit; }
+                    #event-stats-capture-target .event-stats-body { padding: 24px; overflow: visible; }
+                    #event-stats-capture-target .event-stats-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+                    #event-stats-capture-target .event-stats-table th, #event-stats-capture-target .event-stats-table td { padding: 12px; border-bottom: 1px solid rgb(31, 37, 46); text-align: left; white-space: pre-line; }
+                    #event-stats-capture-target .event-stats-table th:first-child, #event-stats-capture-target .event-stats-table td:first-child { text-align: left; }
+                    #event-stats-capture-target .event-stats-table th { color: rgb(164, 173, 184); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; }
+                    #event-stats-capture-target .event-stats-member { display: inline-flex; align-items: center; gap: 8px; text-align: left; }
+                    #event-stats-capture-target .event-stats-avatar { width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%; border: 1px solid rgb(31, 37, 46); background: rgb(24, 29, 36); object-fit: cover; color: rgb(164, 173, 184); display: inline-grid; place-items: center; font-size: 10px; font-weight: 800; }
+                    #event-stats-capture-target img.event-stats-avatar { display: inline-block; }
+                    #event-stats-capture-target .event-stats-mobile-list { display: none; }
+                    #event-stats-capture-target .event-stats-rank-list { display: grid; gap: 12px; }
+                    #event-stats-capture-target .event-stats-rank-card { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 16px; padding: 16px; border: 1px solid rgb(31, 37, 46); border-radius: 8px; background: rgb(31, 37, 46); }
+                    #event-stats-capture-target .event-stats-rank { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgb(24, 29, 36); color: rgb(232, 238, 245); font-weight: 800; }
+                    #event-stats-capture-target .event-stats-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+                    #event-stats-capture-target .event-stats-group-name { margin: 0; font-size: 20px; line-height: 1.2; }
+                    #event-stats-capture-target .event-stats-group-rate { flex: 0 0 auto; font-size: 20px; font-weight: 800; }
+                    #event-stats-capture-target .event-stats-group-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+                    #event-stats-capture-target .event-stats-group-metric span, #event-stats-capture-target .event-stats-roster-label { display: block; color: rgb(164, 173, 184); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+                    #event-stats-capture-target .event-stats-group-metric strong { display: block; margin-top: 2px; font-size: 16px; font-weight: 750; white-space: pre-line; }
+                    #event-stats-capture-target .event-stats-roster { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+                    #event-stats-capture-target .event-stats-roster-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px 4px 4px; border-radius: 999px; background: rgb(24, 29, 36); color: rgb(232, 238, 245); font-size: 12px; line-height: 1.35; }
+                    #event-stats-capture-target .event-stats-roster-chip .event-stats-avatar { width: 22px; height: 22px; flex-basis: 22px; font-size: 9px; }
+                `;
+                target.appendChild(captureStyle);
+
+                wrapper = window.parent.document.createElement("div");
+                wrapper.style.position = "fixed";
+                wrapper.style.left = "-12000px";
+                wrapper.style.top = "0";
+                wrapper.style.width = target.style.width;
+                wrapper.style.background = "rgb(24, 29, 36)";
+                wrapper.appendChild(target);
+                window.parent.document.body.appendChild(wrapper);
+
+                const blobPromise = (async () => {
+                    await waitForStatsAssets(target);
+                    const rect = target.getBoundingClientRect();
+                    const scale = Math.max(0.4, Math.min(1.5, Math.sqrt(12000000 / Math.max(1, rect.width * rect.height))));
+                    const canvas = await html2canvas(target, {
+                        useCORS: true,
+                        allowTaint: false,
+                        backgroundColor: "rgb(24, 29, 36)",
+                        imageTimeout: 8000,
+                        ignoreElements: element => element.tagName === "IFRAME",
+                        logging: false,
+                        scale,
+                        scrollX: 0,
+                        scrollY: 0,
+                        windowWidth: Math.ceil(rect.width),
+                        windowHeight: Math.ceil(rect.height),
+                        onclone: clonedDocument => {
+                            clonedDocument.querySelectorAll("style, link[rel='stylesheet']").forEach(node => {
+                                if (!node.textContent?.includes("event-stats-capture-target")) node.remove();
+                            });
+                            clonedDocument.documentElement.style.backgroundColor = "rgb(24, 29, 36)";
+                            clonedDocument.documentElement.style.color = "rgb(232, 238, 245)";
+                            clonedDocument.body.style.backgroundColor = "rgb(24, 29, 36)";
+                            clonedDocument.body.style.color = "rgb(232, 238, 245)";
+                            const clonedTarget = clonedDocument.getElementById("event-stats-capture-target");
+                            if (clonedTarget) {
+                                clonedTarget.style.backgroundColor = "rgb(24, 29, 36)";
+                                clonedTarget.style.color = "rgb(232, 238, 245)";
+                            }
+                        },
+                    });
+                    return canvasToBlob(canvas);
+                })();
+                const clipboardContexts = [
+                    {
+                        clipboard: window.parent.navigator.clipboard,
+                        ClipboardItemClass: window.parent.ClipboardItem,
+                    },
+                    {
+                        clipboard: navigator.clipboard,
+                        ClipboardItemClass: window.ClipboardItem,
+                    },
+                ];
+                let clipboardError = new Error("Clipboard API is unavailable");
+                let copied = false;
+
+                for (const context of clipboardContexts) {
+                    const { clipboard, ClipboardItemClass } = context;
+                    if (!clipboard?.write || !ClipboardItemClass) continue;
+                    if (ClipboardItemClass.supports && !ClipboardItemClass.supports("image/png")) continue;
+                    try {
+                        await clipboard.write([new ClipboardItemClass({ "image/png": blobPromise })]);
+                        copied = true;
+                        setStatsShareState("success");
+                        break;
+                    } catch (error) {
+                        clipboardError = error;
+                    }
+                }
+
+                if (!copied) {
+                    await blobPromise;
+                    throw clipboardError;
+                }
+            } catch (error) {
+                console.error("Copy statistics failed", error);
+                setStatsShareState("error", statsCaptureErrorMessage(error));
+            } finally {
+                wrapper?.remove();
+                shareResetTimer = setTimeout(() => setStatsShareState("idle"), 1800);
+            }
+        }
+
+        function renderRows(rows) {
+            if (!rows.length) return `<p class="event-stats-empty">No statistics available.</p>`;
+            const columns = Object.keys(rows[0]);
+            const table = `<table class="event-stats-table">
+                <thead><tr>${columns.map(column => `<th>${escapeHtml(column)}</th>`).join("")}</tr></thead>
+                <tbody>${rows.map(row => `<tr>${columns.map(column => `<td>${column === "Name" ? memberHtml(row[column]) : escapeHtml(row[column])}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table>`;
+            const cards = `<div class="event-stats-mobile-list">${rows.map(row => `
+                <article class="event-stats-member-card">
+                    <div class="event-stats-member-card-head">
+                        ${memberHtml(row.Name)}
+                        <span class="event-stats-member-card-rank">#${escapeHtml(row.Rank)}</span>
+                    </div>
+                    <div class="event-stats-member-card-metrics">
+                        <div class="event-stats-member-card-metric"><span>Sold</span><strong>${escapeHtml(row.Sold)}</strong></div>
+                        <div class="event-stats-member-card-metric"><span>Remaining</span><strong>${escapeHtml(row.Remaining)}</strong></div>
+                        <div class="event-stats-member-card-metric"><span>Sold %</span><strong>${escapeHtml(row["Sold %"])}</strong></div>
+                        <div class="event-stats-member-card-metric"><span>Revenue</span><strong>${escapeHtml(row.Revenue)}</strong></div>
+                        <div class="event-stats-member-card-metric"><span>Generation</span><strong>${escapeHtml(row.Generation)}</strong></div>
+                        <div class="event-stats-member-card-metric"><span>Team</span><strong>${escapeHtml(row.Team)}</strong></div>
+                    </div>
+                </article>
+            `).join("")}</div>`;
+            return table + cards;
+        }
+
+        function renderGroupRows(rows) {
+            if (!rows.length) return `<p class="event-stats-empty">No statistics available.</p>`;
+            return `<div class="event-stats-rank-list">${rows.map(row => {
+                const displayName = activeTab === "Generation" ? `Gen ${row.Name}` : row.Name;
+                const members = String(row.Members || "").split(",").map(member => member.trim()).filter(Boolean);
+                return `<article class="event-stats-rank-card">
+                    <div class="event-stats-rank">${escapeHtml(row.Rank)}</div>
+                    <div class="event-stats-group-main">
+                        <div class="event-stats-group-head">
+                            <h3 class="event-stats-group-name">${escapeHtml(displayName)}</h3>
+                            <div class="event-stats-group-rate">${escapeHtml(row["Sold %"])}</div>
+                        </div>
+                        <div class="event-stats-group-metrics">
+                            <div class="event-stats-group-metric"><span>Sold</span><strong>${escapeHtml(row.Sold)}</strong></div>
+                            <div class="event-stats-group-metric"><span>Remaining</span><strong>${escapeHtml(row.Remaining)}</strong></div>
+                            <div class="event-stats-group-metric"><span>Revenue</span><strong>${escapeHtml(row.Revenue)}</strong></div>
+                        </div>
+                        <div class="event-stats-roster-label">Members (${members.length})</div>
+                        <div class="event-stats-roster">${members.map(member => `<span class="event-stats-roster-chip">${avatarHtml(member)}<span>${escapeHtml(member)}</span></span>`).join("")}</div>
+                    </div>
+                </article>`;
+            }).join("")}</div>`;
+        }
+
+        function fillSelect(select, values, selected) {
+            select.replaceChildren(...["All", ...values].map(value => {
+                const option = window.parent.document.createElement("option");
+                option.value = value;
+                option.textContent = value;
+                option.selected = value === selected;
+                return option;
+            }));
+        }
+
+        function filteredRows() {
+            const rows = rowsByTab()[activeTab] || [];
+            if (activeTab !== "Member") return rows;
+            const filtered = rows.filter(row => (
+                (selectedGeneration === "All" || row.Generation === selectedGeneration)
+                && (selectedTeam === "All" || row.Team === selectedTeam)
+            ));
+            filtered.sort((a, b) => (
+                parseNumber(a.Rank) - parseNumber(b.Rank)
+                || String(a.Name).localeCompare(String(b.Name))
+            ));
+            return withFilterRanks(filtered);
+        }
+
+        function render() {
+            const payload = getStatsPayload();
+            const tabs = Object.keys(payload.rowsByTab || {});
+            if (!tabs.includes(activeTab)) activeTab = tabs[0] || "";
+            dialog.querySelector("#event-stats-title").textContent = payload.title || "Event statistics";
+            tabList.replaceChildren(...tabs.map(tab => {
+                const button = window.parent.document.createElement("button");
+                button.type = "button";
+                button.className = "event-stats-tab";
+                button.textContent = tab;
+                button.setAttribute("role", "tab");
+                button.setAttribute("aria-selected", String(tab === activeTab));
+                button.addEventListener("click", () => {
+                    activeTab = tab;
+                    render();
+                });
+                return button;
+            }));
+            const memberRows = rowsByTab().Member || [];
+            const generations = [...new Set(memberRows.map(row => row.Generation).filter(Boolean))].sort((a, b) => Number(a) - Number(b) || String(a).localeCompare(String(b)));
+            const teams = [...new Set(memberRows.map(row => row.Team).filter(Boolean))].sort();
+            fillSelect(generationFilter, generations, selectedGeneration);
+            fillSelect(teamFilter, teams, selectedTeam);
+            filters.classList.toggle("is-visible", activeTab === "Member");
+            body.innerHTML = activeTab === "Member" ? renderRows(filteredRows()) : renderGroupRows(filteredRows());
+            body.querySelectorAll("img.event-stats-avatar").forEach(image => {
+                image.addEventListener("error", () => {
+                    const fallback = window.parent.document.createElement("span");
+                    fallback.className = "event-stats-avatar";
+                    fallback.setAttribute("aria-hidden", "true");
+                    fallback.textContent = image.dataset.initials || "?";
+                    image.replaceWith(fallback);
+                }, { once: true });
+            });
+        }
+
+        generationFilter.addEventListener("change", () => {
+            selectedGeneration = generationFilter.value;
+            render();
+        });
+        teamFilter.addEventListener("change", () => {
+            selectedTeam = teamFilter.value;
+            render();
+        });
+        dialog.querySelector(".event-stats-close").addEventListener("click", () => dialog.close());
+        shareButton.addEventListener("click", copyStatsImage);
+        dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+        document.getElementById("stats-btn").addEventListener("click", () => {
+            render();
+            if (!dialog.open) dialog.showModal();
+            requestAnimationFrame(() => dialog.querySelector(".event-stats-close")?.focus());
+        });
+        render();
+        if (reopenDialog) dialog.showModal();
+    </script>
+    """
+    controls_html = (
+        controls_html
+        .replace("__CAPTURE_SCRIPT__", capture_script)
+        .replace("__CAN_SHARE__", "true" if can_share else "false")
+        .replace("__PAYLOAD__", payload)
+        .replace("__TITLE__", safe_title)
+    )
+    components.html(controls_html, height=70)
+
+
+def render_share_controls(storage_key, right_px=84):
     controls_html = r"""
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onerror="const fallback=document.createElement('script');fallback.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';document.head.appendChild(fallback);"></script>
     <style>
@@ -421,7 +1031,7 @@ def render_share_controls(storage_key):
             if (iframe) {
                 iframe.style.position = "fixed";
                 iframe.style.bottom = "calc(56px + env(safe-area-inset-bottom, 0px))";
-                iframe.style.right = "calc(16px + env(safe-area-inset-right, 0px))";
+                iframe.style.right = "calc(__RIGHT_PX__px + env(safe-area-inset-right, 0px))";
                 iframe.style.width = "60px";
                 iframe.style.height = "60px";
                 iframe.style.zIndex = "1000";
@@ -960,7 +1570,8 @@ def render_share_controls(storage_key):
     </script>
     """
     safe_storage_key = re.sub(r'[^a-zA-Z0-9_-]+', '_', storage_key)
-    components.html(controls_html.replace("__STORAGE_KEY__", safe_storage_key), height=70)
+    controls_html = controls_html.replace("__STORAGE_KEY__", safe_storage_key).replace("__RIGHT_PX__", str(int(right_px)))
+    components.html(controls_html, height=70)
 
 
 
