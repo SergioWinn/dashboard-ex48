@@ -707,6 +707,23 @@ def render_stats_controls(rows_by_tab=None, title="Event statistics", can_share=
             return String(error?.message || "The statistics image could not be created.");
         }
 
+        function statsCaptureSubtitle() {
+            const parts = [`${activeTab || "Member"} ranking`];
+            if (activeTab === "Member") {
+                if (selectedGeneration !== "All") parts.push(`Generation ${selectedGeneration}`);
+                if (selectedTeam !== "All") parts.push(`Team ${selectedTeam}`);
+                parts.push(`${filteredRows().length} entries`);
+            }
+            return parts.join(" · ");
+        }
+
+        function removeCaptureColumn(target, label) {
+            const headers = [...target.querySelectorAll(".event-stats-table th")];
+            const index = headers.findIndex(header => header.textContent.trim() === label);
+            if (index < 0) return;
+            target.querySelectorAll(".event-stats-table tr").forEach(row => row.children[index]?.remove());
+        }
+
         async function copyStatsImage() {
             if (!canShareStats) return;
             if (shareResetTimer) clearTimeout(shareResetTimer);
@@ -728,6 +745,17 @@ def render_stats_controls(rows_by_tab=None, title="Event statistics", can_share=
                     }
                 });
                 target.querySelector(".event-stats-actions")?.remove();
+                target.querySelector(".event-stats-tabs")?.remove();
+                target.querySelector(".event-stats-filters")?.remove();
+                if (selectedGeneration !== "All") removeCaptureColumn(target, "Generation");
+                if (selectedTeam !== "All") removeCaptureColumn(target, "Team");
+                const title = target.querySelector("#event-stats-title");
+                if (title) {
+                    const subtitle = window.parent.document.createElement("p");
+                    subtitle.className = "event-stats-capture-subtitle";
+                    subtitle.textContent = statsCaptureSubtitle();
+                    title.insertAdjacentElement("afterend", subtitle);
+                }
                 const targetBody = target.querySelector(".event-stats-body");
                 targetBody.style.maxHeight = "none";
                 targetBody.style.overflow = "visible";
@@ -744,8 +772,9 @@ def render_stats_controls(rows_by_tab=None, title="Event statistics", can_share=
                     #event-stats-capture-target * { box-sizing: border-box; box-shadow: none !important; }
                     #event-stats-capture-target .event-stats-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px; border-bottom: 1px solid rgb(31, 37, 46); }
                     #event-stats-capture-target .event-stats-head h2 { margin: 0; font-size: 20px; line-height: 1.2; overflow-wrap: anywhere; }
+                    #event-stats-capture-target .event-stats-capture-subtitle { margin: 8px 0 0; color: rgb(164, 173, 184); font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
                     #event-stats-capture-target .event-stats-share, #event-stats-capture-target .event-stats-close { display: none !important; }
-                    #event-stats-capture-target .event-stats-tabs { display: flex; gap: 8px; padding: 16px 24px 0; }
+                    #event-stats-capture-target .event-stats-tabs { display: none; }
                     #event-stats-capture-target .event-stats-tab { min-height: 44px; border: 0; border-radius: 8px; background: transparent; color: rgb(164, 173, 184); padding: 8px 16px; font: inherit; font-size: 14px; font-weight: 700; }
                     #event-stats-capture-target .event-stats-tab[aria-selected="true"] { background: rgb(31, 37, 46); color: rgb(232, 238, 245); }
                     #event-stats-capture-target .event-stats-filters { display: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 16px 24px 0; }
