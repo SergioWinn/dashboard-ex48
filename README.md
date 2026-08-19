@@ -38,10 +38,10 @@ This project is built as an operational tracker: it polls public event data, fal
 |   `-- fallback/             # Bundled event detail snapshots
 |-- ui/
 |   |-- components.py         # Dashboard cards, share controls, statistics dialog
-|   `-- styles.py             # Streamlit CSS shell
+|   |-- styles.py             # Streamlit CSS shell
+|   `-- tokens.css            # Design tokens
 |-- assets/                   # SVG assets
 |-- tests/                    # Unit tests
-|-- tokens.css                # Design tokens
 `-- requirements.txt
 ```
 

@@ -10,7 +10,8 @@ __pycache__/
 *$py.class
 
 # Streamlit
-.streamlit/
+.streamlit/*
+!.streamlit/secrets.example.toml
 .runtime_cache/
 .wrangler/
 

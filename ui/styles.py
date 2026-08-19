@@ -3,7 +3,7 @@
 from pathlib import Path
 
 
-TOKENS_CSS = (Path(__file__).parent.parent / "tokens.css").read_text(encoding="utf-8")
+TOKENS_CSS = (Path(__file__).parent / "tokens.css").read_text(encoding="utf-8")
 
 GLOBAL_CSS = "<style>\n" + TOKENS_CSS + """
 
